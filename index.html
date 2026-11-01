@@ -206,16 +206,16 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
       <button id="np-l" onclick="npDir('L')">做多</button>
     </div>
     <div class="mrow">
-      <label>入场均价</label>
+      <label>开仓价格</label>
       <input id="np-entry" type="number" step="any" inputmode="decimal" oninput="npCheck()">
     </div>
     <div class="mrow">
-      <label>占用保证金 USDT</label>
+      <label>保证金 USDT</label>
       <input id="np-margin" type="number" step="any" inputmode="decimal" oninput="npCheck()">
     </div>
     <div class="mrow">
-      <label>杠杆倍数（如 1、3、5）</label>
-      <input id="np-lev" type="number" step="any" inputmode="decimal" oninput="npCheck()">
+      <label>当前盈亏 USDT（币安上「盈亏」，亏了填负数）</label>
+      <input id="np-pnl" type="number" step="any" inputmode="decimal" oninput="npCheck()">
     </div>
     <div class="mmsg" id="np-msg"></div>
     <div class="macts">
@@ -887,13 +887,28 @@ function heldDays(p) {
 
 /* ============ 手动记录持仓 ============ */
 let _npDir = "S";
+let _npCur = 0, _npCurSym = "";
+
+async function npFetchPrice(sym) {
+  sym = (sym || "").trim().toUpperCase();
+  if (!sym || (_npCurSym === sym && _npCur > 0)) return;
+  try {
+    const bars = await daily(sym);
+    if (bars && bars.length) {
+      _npCur = bars[bars.length - 1].c;
+      _npCurSym = sym;
+      npCheck();
+    }
+  } catch (e) {}
+}
 
 function openNewPos() {
   _npDir = "S";
   $("np-sym").value = "";
   $("np-entry").value = "";
   $("np-margin").value = "";
-  $("np-lev").value = "1";
+  $("np-pnl").value = "";
+  _npCur = 0; _npCurSym = "";
   $("np-msg").textContent = "";
   npDir("S");
   $("npmodal").classList.add("on");
@@ -906,33 +921,42 @@ function npDir(d) {
   npCheck();
 }
 
-function npQty() {
+function npCalc() {
   const e = parseFloat($("np-entry").value);
   const m = parseFloat($("np-margin").value);
-  const l = parseFloat($("np-lev").value);
-  if (!isFinite(e) || !isFinite(m) || !isFinite(l) || e <= 0 || m <= 0 || l <= 0) return null;
-  return (m * l) / e;
+  const pnl = parseFloat($("np-pnl").value);
+  const cur = _npCur;                      // 扫描拿到的现价
+  if (!isFinite(e) || e <= 0) return null;
+  // 用币安上的盈亏反推数量：qty = |盈亏| / |现价 - 开仓价|
+  if (isFinite(pnl) && pnl !== 0 && cur > 0 && Math.abs(cur - e) > 1e-12) {
+    return { qty: Math.abs(pnl) / Math.abs(cur - e), how: "按盈亏反推" };
+  }
+  // 没盈亏就用保证金（1x 假设）
+  if (isFinite(m) && m > 0) {
+    return { qty: m / e, how: "按保证金 1x 估算" };
+  }
+  return null;
 }
 
 function npCheck() {
   const sym = ($("np-sym").value || "").trim().toUpperCase();
   const e = parseFloat($("np-entry").value);
   const m = parseFloat($("np-margin").value);
-  const l = parseFloat($("np-lev").value);
+  const pnl = parseFloat($("np-pnl").value);
   const msg = $("np-msg");
   msg.classList.remove("bad");
   if (!sym) { msg.textContent = "填入币种"; return; }
+  if (sym !== _npCurSym) { _npCur = 0; npFetchPrice(sym); }
   if (loadPos(sym)) { msg.textContent = sym + " 已经有记录了，可在卡片里修改"; msg.classList.add("bad"); return; }
-  if (!isFinite(e) || !isFinite(m) || !isFinite(l) || e <= 0 || m <= 0 || l <= 0) {
-    msg.textContent = "填入入场价、保证金、杠杆";
-    return;
-  }
-  const notional = m * l;
-  const qty = notional / e;
-  const boom = Math.round(100 / l);
-  msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　数量 <b style='color:#8ab4ff'>" +
-    qty.toFixed(6) + "</b><br>价格反向 " + boom + "% 爆仓（亏光保证金）";
-  if (l > 125) { msg.classList.add("bad"); }
+  if (!isFinite(e) || e <= 0) { msg.textContent = "填入开仓价格"; return; }
+  if (!_npCur) { msg.textContent = "正在取现价…" + (sym ? "（先点确认让程序抓一次，或稍后重试）" : ""); }
+  const r = npCalc();
+  if (!r) { msg.textContent = "填入保证金 或 当前盈亏"; return; }
+  const notional = r.qty * e;
+  const lev = isFinite(m) && m > 0 ? notional / m : 1;
+  msg.innerHTML = "数量 <b style='color:#8ab4ff'>" + r.qty.toFixed(6) + "</b>（" + r.how + "）<br>" +
+    "名义 <b>" + notional.toFixed(2) + "U</b>　杠杆 <b>" + lev.toFixed(2) + "x</b>" +
+    (isFinite(pnl) && pnl !== 0 ? "　现价 <b>" + _npCur + "</b>" : "");
 }
 
 function npClose() { $("npmodal").classList.remove("on"); }
@@ -941,15 +965,15 @@ function npSave() {
   const sym = ($("np-sym").value || "").trim().toUpperCase();
   const e = parseFloat($("np-entry").value);
   const m = parseFloat($("np-margin").value);
-  const l = parseFloat($("np-lev").value);
-  if (!sym || !isFinite(e) || !isFinite(m) || !isFinite(l) || e <= 0 || m <= 0 || l <= 0) {
-    alert("填写有误"); return;
-  }
-  const notional = m * l;
-  const qty = notional / e;
+  if (!sym || !isFinite(e) || e <= 0) { alert("填写有误"); return; }
+  const r = npCalc();
+  if (!r) { alert("填入保证金或当前盈亏"); return; }
+  const notional = r.qty * e;
   savePos(sym, {
     dir: _npDir, entry: e, sl: _npDir === "S" ? e * 2 : e * 0.5, ext: e,
-    qty: qty, lev: l, margin: m, marginMode: "isolated",
+    qty: r.qty, lev: isFinite(m) && m > 0 ? notional / m : 1,
+    margin: isFinite(m) && m > 0 ? m : notional,
+    marginMode: "isolated",
     date: new Date().toISOString().slice(0, 10), alt: true,
   });
   npClose();
