@@ -407,7 +407,7 @@ async function scanAll() {
 
 /* ============ 仓位计算（币安整数杠杆 + 最小下单量）============ */
 const STEP = { BTC: 0.001, ETH: 0.001, SOL: 0.01, BNB: 0.01, DOGE: 1, ADA: 1 };
-const MIN_NOTIONAL = 5;      // 币安 U 本位最小下单金额
+const MIN_NOTIONAL = 5.1;    // 币安 U 本位最小下单额（实测 5.1）
 
 function sizePosition(s) {
   s.stop = s.sig === "L" ? s.cur - CFG.K_SL * s.atr : s.cur + CFG.K_SL * s.atr;
@@ -602,7 +602,7 @@ async function renderAlts() {
       '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
       '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
     shorts.forEach(a => {
-      const posUsd = CFG.CAPITAL * 0.05;
+      const posUsd = Math.max(CFG.CAPITAL * 0.05, MIN_NOTIONAL);   // 不能低于币安最小下单额
       const qty = posUsd / a.price;
       const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
       h += '<div class="scard">' +
@@ -610,7 +610,7 @@ async function renderAlts() {
         '<span class="bnok">币安合约</span>' +
         '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
         '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x）</div>' +
+        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x' + (posUsd > CFG.CAPITAL * 0.05 + 0.01 ? '，已按下单下限' : '') + '）</div>' +
         '<div class="aline">数量 <b>' + qs + '</b>' +
         '　持有 <b>20 天</b>　不设止损</div>' +
         '<div class="aline" style="font-size:11.5px;color:#5f6779">' +
