@@ -1746,6 +1746,8 @@ function syncTabs() {
     return '<button class="' + (SUB === x.k ? "on" : "") +
       '" onclick="setSUB(\'' + x.k + '\')">' + x.t + '</button>';
   }).join("");
+  // 风险档位跟着子页显隐
+  if (typeof renderRiskBar === "function") renderRiskBar();
 }
 
 function setTAB(t) {
@@ -2214,6 +2216,10 @@ function copyOne(v, el) {
 function renderRiskBar() {
   const bar = $("riskbar");
   if (!bar) return;
+  // 风险档位只影响「信号」里的仓位大小，其他子页不显示
+  const showIt = (SUB === "sig");
+  bar.style.display = showIt ? "" : "none";
+  if (!showIt) { bar.innerHTML = ""; return; }
   bar.innerHTML = RISK_LEVELS.map(r =>
     '<button class="' + (Math.abs(CFG.RISK - r.key) < 1e-9 ? "on" : "") +
     '" onclick="setRisk(' + r.key + ')">' + r.name +
