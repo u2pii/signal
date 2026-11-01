@@ -616,7 +616,7 @@ function render(rows, sigs) {
   /* ---- 持仓中：移动止损 ---- */
   const holds = rows._holdings || [];
   if (holds.length) {
-    h += '<h3>持仓中 · 移动止损</h3>';
+    h += '<h3>我的持仓</h3>';
     holds.forEach(r => {
       const p = r.pos, info = r.posInfo;
       const dirTxt = p.dir === "L" ? "多" : "空";
@@ -640,16 +640,32 @@ function render(rows, sigs) {
         '</div><div class="kv">' +
         '<div><span>入场</span><b onclick="editPos(\'' + r.sym + '\')">' + f(p.entry) + ' ✏️</b></div>' +
         '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
-        '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
-        '<div><span>新止损</span>' + slTxt + '</div>' +
+        (p.alt
+          ? '<div><span>已持有</span><b>' + heldDays(p) + '</b></div>' +
+            '<div><span>策略</span><b style="color:#4fe0a8">持20天不设止损</b></div>'
+          : '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
+            '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
           (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
-        (r.sig
+        (p.alt
           ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
-            (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
-          : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>') +
+            (function(){
+              let extra = "";
+              try {
+                const d0 = new Date(p.date + "T00:00:00").getTime();
+                const d = Math.floor((Date.now() - d0) / 86400000);
+                const left = Math.max(0, 20 - d);
+                extra = left > 0 ? "，还剩 " + left + " 天" : "，已到期可平";
+              } catch (e) {}
+              return '山寨做空：不设止损' + extra + '。涨100%自动爆仓，最多亏 ' +
+                (p.margin ? p.margin.toFixed(2) : '—') + 'U';
+            })() + '</div>'
+          : (r.sig
+            ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
+              (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
+            : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>')) +
         '<div class="acts">' +
         '<a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a>' +
         '<a onclick="openMargin(\'' + r.sym + '\')">💰 保证金</a></div>' +
@@ -660,7 +676,7 @@ function render(rows, sigs) {
             '<div class="acts"><a class="p" style="background:#e8484f;color:#fff" onclick="closePos(\'' + r.sym + '\')">我已平仓</a></div>'
           : (info.moved
             ? '<div class="acts"><a class="p" onclick="applySl(\'' + r.sym + '\')">✅ 已在币安改好止损</a></div>'
-            : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>')) +
+            : (p.alt ? '' : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>'))) +
         '</div>';
       // 记录待更新的止损
       p._newSl = info.sl;
@@ -844,6 +860,15 @@ function showAllPos() {
   const sym = ans.trim().toUpperCase();
   if (!loadPos(sym)) { alert("没有 " + sym + " 的记录"); return; }
   closePos(sym);
+}
+
+/* 已持有天数 */
+function heldDays(p) {
+  try {
+    const d0 = new Date(p.date + "T00:00:00").getTime();
+    const days = Math.floor((Date.now() - d0) / 86400000);
+    return days + "/20 天";
+  } catch (e) { return "—"; }
 }
 
 /* ============ 手动记录持仓 ============ */
