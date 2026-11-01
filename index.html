@@ -92,6 +92,13 @@ color:#8b93a6;font-size:15px;font-weight:600;font-family:inherit}
 .aline b{color:#c9cfdd;font-variant-numeric:tabular-nums}
 .aline b.bad{color:#ff6b7d}
 .aline b.good{color:#19c07a}
+.levrow{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.levlabel{font-size:11.5px;color:#5f6779;margin-right:2px}
+.levbtn{flex:1;min-width:44px;padding:8px 4px;border-radius:9px;border:1px solid #2a3448;
+background:#0a0c10;color:#7d8699;font-size:13px;font-weight:600;font-family:inherit}
+.levbtn.on{border-color:#8ab4ff;background:#16224a;color:#8ab4ff}
+.levbtn.dis{opacity:.3}
+.levbtn.hint{flex:0 0 auto;min-width:52px;font-size:12px;border-style:dashed}
 .movbox{background:#12151d;border:1px solid #202633;border-radius:13px;padding:13px 15px;margin-bottom:14px}
 .movhead{font-size:12px;color:#5f6779;margin-bottom:8px;font-weight:600}
 .movgrid{display:flex;flex-direction:column;gap:5px}
@@ -378,6 +385,11 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
     <div class="mrow">
       <label>保证金金额（USDT）</label>
       <input id="mm-usd" type="number" step="any" inputmode="decimal" oninput="onMarginEdit()">
+    </div>
+    <div class="mrow">
+      <label>或者直接改杠杆（保证金自动算）</label>
+      <input id="mm-lev" type="number" step="1" inputmode="numeric" placeholder="如 2、3、5，留空则按上面金额"
+             oninput="onLevInput()">
     </div>
     <div class="mrow">
       <label>保证金模式</label>
@@ -732,6 +744,25 @@ function sizePosition(s) {
   s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;   // 明显超过目标（取整导致）
 }
 
+/* 单笔切换杠杆（只改保证金占用，不改数量/风险） */
+function setSigLev(sym, lev) {
+  const list = (window._last && window._last.sigs) || [];
+  const s = list.find(x => x.sym === sym);
+  if (!s) return;
+  const minLev = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
+  if (lev === 0) {
+    s.lev = minLev;                       // 自动 = 刚好覆盖
+  } else if (lev < minLev) {
+    alert("这单名义 " + s.notional.toFixed(0) + "U，至少要 " + minLev +
+          "x 才装得下（保证金不能超过本金）");
+    s.lev = minLev;
+  } else {
+    s.lev = lev;
+  }
+  s.margin = s.notional / s.lev;
+  render(window._last.rows, list);
+}
+
 function render(rows, sigs) {
   let h = "";
 
@@ -767,6 +798,17 @@ function render(rows, sigs) {
         '</div>' +
         (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
         (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
+        '<div class="levrow" data-sym="' + s.sym + '">' +
+          '<span class="levlabel">选杠杆</span>' +
+          [1,2,3,5,10].map(function(L){
+            var minL = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
+            var dis = L < minL;
+            return '<button class="levbtn' + (s.lev === L ? ' on' : '') + (dis ? ' dis' : '') +
+              '" ' + (dis ? 'disabled' : ('onclick="setSigLev(\'' + s.sym + '\',' + L + ')"')) +
+              '>' + L + 'x</button>';
+          }).join('') +
+          '<button class="levbtn hint" onclick="setSigLev(\'' + s.sym + '\',0)">自动</button>' +
+        '</div>' +
         '<div class="acts">' +
         '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
         '<a onclick="mark(\'' + s.sym + '\',\'' + s.sig + '\')">' +
@@ -1587,6 +1629,7 @@ function openMargin(sym) {
   $("mm-title").textContent = "调整 " + sym + " 保证金";
   const cur = p.margin || (p.qty * p.entry / (p.lev || 1));
   $("mm-usd").value = cur.toFixed(2);
+  $("mm-lev").value = p.lev ? String(Math.round(p.lev * 100) / 100) : "";
   setMode(_mmMode);
   onMarginEdit();
   $("mmodal").classList.add("on");
@@ -1620,6 +1663,17 @@ function onMarginEdit() {
   } else {
     msg.innerHTML += "<br><span style='color:#4fe0a8'>逐仓：最多亏光这笔保证金</span>";
   }
+}
+
+function onLevInput() {
+  const lv = parseFloat($("mm-lev").value);
+  if (!isFinite(lv) || lv <= 0) { onMarginEdit(); return; }
+  const p = loadPos(_mmSym);
+  if (!p) return;
+  const notional = p.qty * p.entry;
+  const mg = notional / lv;
+  $("mm-usd").value = mg.toFixed(2);
+  onMarginEdit();
 }
 
 function mmClose() { $("mmodal").classList.remove("on"); _mmSym = null; }
