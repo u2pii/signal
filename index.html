@@ -128,38 +128,24 @@ color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:1
 color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
 .nprow button.on.short{border-color:#19c07a;background:#0d1a14;color:#19c07a}
 .nprow button.on.long{border-color:#e8484f;background:#1a0f11;color:#ff8fa0}
-.altgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;margin-bottom:14px}
-.altcol{display:flex;flex-direction:column;gap:10px;min-width:0}
-.mbox{background:#12151d;border:1px solid #202633;border-radius:12px;padding:11px 11px 8px}
-.mttl{font-size:11.5px;color:#5f6779;font-weight:700;margin-bottom:6px}
-.mrow{display:flex;justify-content:space-between;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid #181c26}
-.mrow:last-child{border-bottom:none}
-.msym{font-weight:700;color:#e2e6f0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:88px}
-.mpx{font-size:9.5px;color:#4b5266;font-variant-numeric:tabular-nums;margin-top:1px}
-.mchg{font-size:11.5px;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-.mchg.up{color:#19c07a}
-.mchg.dn{color:#ff6b7d}
-.sc2{background:#0d1015;border-left:2.5px solid #2a3448;border-radius:8px;padding:8px 9px;margin-bottom:7px}
-.sc2n{font-size:12.5px;font-weight:700;color:#e2e6f0;display:flex;justify-content:space-between;align-items:baseline;gap:4px}
-.sc2b{font-size:10.5px;font-weight:700}
-.sc2l{font-size:10px;color:#5f6779;margin-top:3px;line-height:1.5}
-.sc2btn{width:100%;margin-top:7px;padding:7px;border-radius:7px;border:none;font-size:11.5px;
-font-weight:700;font-family:inherit;cursor:pointer}
-.sc2empty{font-size:11px;color:#3d4352;padding:8px 0}
-.morebox{margin-top:6px}
-.morebox summary{font-size:12px;color:#5f6779;padding:11px 13px;background:#12151d;
-border:1px solid #202633;border-radius:11px;cursor:pointer;list-style:none}
-.morebox summary::-webkit-details-marker{display:none}
 .subbar{display:none;gap:6px;margin:-6px 0 14px}
 .subbar button{flex:1;padding:9px 4px;border-radius:10px;border:1px solid #1c2230;background:#0d1015;
 color:#6b7385;font-size:12.5px;font-weight:600;font-family:inherit}
 .subbar button.on{border-color:#3a7d5c;background:#0f2018;color:#4fe0a8}
 .bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
+.bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
+justify-content:space-between;align-items:center}
 .secttl{font-size:12.5px;font-weight:700;margin-bottom:6px}
 .sectrule{font-size:11px;color:#7d8699;line-height:1.6;border:1px solid #2a3448;background:#0d1015;
 border-radius:9px;padding:9px 11px;margin-bottom:11px}
-.bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
-justify-content:space-between;align-items:center}
+.movrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #181c26}
+.movrow:last-child{border-bottom:none}
+.movsym{font-weight:700;color:#e2e6f0;font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.movchg{font-size:13px;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.movchg.up{color:#19c07a}
+.movchg.dn{color:#ff6b7d}
+.movpx{font-size:11px;color:#5f6779;font-variant-numeric:tabular-nums;text-align:right;min-width:64px}
+.sc2empty{font-size:11.5px;color:#3d4352;padding:8px 0}
 .tabs{display:flex;gap:8px;margin-bottom:14px}
 .tabs button{flex:1;padding:11px 4px;border-radius:12px;border:1px solid #202633;background:#12151d;
 color:#7d8699;font-size:14px;font-weight:700;font-family:inherit}
@@ -1004,7 +990,7 @@ function render(rows, sigs) {
     syncTabs();
     return;
   }
-  // ===== 山寨页：由 renderAlts 按子页输出 =====
+  // ===== 山寨页：交给 renderAlts 按子页输出 =====
   if (TAB === "alt") {
     $("out").innerHTML = "";
     renderAlts();
@@ -1305,6 +1291,65 @@ function renderMainChg(rows) {
   h += '</div>';
   return h;
 }
+
+/* ============ 记录 / 修改持仓（可改入场价） ============ */
+let _editing = null;   // {sym, dir, atr, mode:'new'|'edit', stopTouched}
+
+function mark(sym, dir) {
+  const p = loadPos(sym);
+  if (p) { alert(sym + " 已经记录过开仓了，可在持仓卡片里修改"); return; }
+  const s = (window._last && window._last.sigs || []).find(x => x.sym === sym);
+  if (!s) { alert("找不到这个信号，请重新检查"); return; }
+  _editing = { sym, dir, atr: s.atr, mode: "new", stopTouched: false, sig: s };
+  $("m-title").textContent = "记录开仓 " + sym + " " + (dir === "L" ? "做多" : "做空");
+  $("m-entry").value = s.cur;
+  $("m-stop").value = s.stop.toFixed(s.stop >= 1000 ? 1 : s.stop >= 1 ? 3 : 5);
+  updateModalMsg();
+  $("modal").classList.add("on");
+}
+
+function onEntryEdit() {
+  if (!_editing || _editing.stopTouched) return;
+  const e = parseFloat($("m-entry").value);
+  if (!isFinite(e) || !_editing.atr) return;
+  const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
+  $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
+  updateModalMsg();
+}
+
+/* 查看并管理全部持仓记录 */
+function showAllPos() {
+  const keys = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0);
+  if (!keys.length) { alert("没有任何持仓记录"); return; }
+  const lines = keys.map(k => {
+    const p = JSON.parse(localStorage.getItem(k));
+    return (k.slice(4) + "  " + (p.dir === "L" ? "多" : "空") +
+            "  入场" + p.entry + "  数量" + p.qty +
+            "  保证金" + (p.margin ? p.margin.toFixed(2) : "—"));
+  });
+  const msg = "共 " + keys.length + " 条记录：\n\n" + lines.join("\n") +
+              "\n\n要删除哪一条？输入币名（如 AIN），取消则不删。";
+  const ans = prompt(msg, "");
+  if (!ans) return;
+  const sym = ans.trim().toUpperCase();
+  if (!loadPos(sym)) { alert("没有 " + sym + " 的记录"); return; }
+  closePos(sym);
+}
+
+/* 已持有天数 */
+function heldDays(p, isShort) {
+  try {
+    const d0 = new Date(p.date + "T00:00:00").getTime();
+    const days = Math.floor((Date.now() - d0) / 86400000);
+    return isShort ? (days + "/20 天") : (days + " 天");
+  } catch (e) { return "—"; }
+}
+
+/* ============ 手动记录持仓 ============ */
+let _npDir = "S";
+let BASE_CAP = 97.66;        // 用户设定的基准余额（不含浮动盈亏）
+let FLOAT_PNL = 0;           // 当前所有持仓的浮动盈亏
+let _npCur = 0, _npCurSym = "";
 
 async function npFetchPrice(sym) {
   sym = (sym || "").trim().toUpperCase();
