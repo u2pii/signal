@@ -929,8 +929,9 @@ function render(rows, sigs) {
         '<div><span>入场</span><b onclick="editPos(\'' + r.sym + '\')">' + f(p.entry) + ' ✏️</b></div>' +
         '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
         (p.alt
-          ? '<div><span>已持有</span><b>' + heldDays(p) + '</b></div>' +
-            '<div><span>策略</span><b style="color:#4fe0a8">持20天不设止损</b></div>'
+          ? '<div><span>已持有</span><b>' + heldDays(p, p.dir === "S") + '</b></div>' +
+            '<div><span>策略</span><b style="color:' + (p.dir === "S" ? "#4fe0a8" : "#f0be5a") + '">' +
+              (p.dir === "S" ? "做空·持20天不设止损" : "自定义做多") + '</b></div>'
           : '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
@@ -953,8 +954,12 @@ function render(rows, sigs) {
               } catch (e) {}
               const lv = p.lev || 1;
               const boom = Math.round(100 / lv);
-              return "山寨做空：不设止损" + extra + "。涨 " + boom + "% 爆仓，最多亏 " +
-                (p.margin ? p.margin.toFixed(2) : '—') + "U";
+              const mgTxt = (p.margin ? p.margin.toFixed(2) : '—') + "U";
+              if (p.dir === "S") {
+                return "山寨做空：不设止损" + extra + "。涨 " + boom + "% 爆仓，最多亏 " + mgTxt;
+              }
+              return "自定义做多：跌 " + boom + "% 爆仓，最多亏 " + mgTxt +
+                     "（此方向无回测策略，按自己的止损来）";
             })() + '</div>'
           : (r.sig
             ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
@@ -1194,11 +1199,11 @@ function showAllPos() {
 }
 
 /* 已持有天数 */
-function heldDays(p) {
+function heldDays(p, isShort) {
   try {
     const d0 = new Date(p.date + "T00:00:00").getTime();
     const days = Math.floor((Date.now() - d0) / 86400000);
-    return days + "/20 天";
+    return isShort ? (days + "/20 天") : (days + " 天");
   } catch (e) { return "—"; }
 }
 
