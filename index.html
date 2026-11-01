@@ -1083,9 +1083,11 @@ async function loadAlts() {
 }
 
 async function renderAlts(holds) {
-  if (!ALT) ALT = await loadAlts();
   const box = $("alts");
   if (!box) return;
+  // 主流页不显示任何山寨内容
+  if (TAB !== "alt") { box.innerHTML = ""; return; }
+  if (!ALT) ALT = await loadAlts();
   if (!ALT) { box.innerHTML = ""; return; }
   // 山寨页的持仓，放到列表下面
   const holdHtml = (TAB === "alt" && holds && holds.length) ?
