@@ -1186,7 +1186,18 @@ async function checkToken() {
       return;
     }
 
-    // ② 再当成「主密码」试（站主用，推导口令后比对）
+    // ② 先看是不是「30 天邀请码」
+    if (d.invite) {
+      const hi = await sha256hex(inp + "|INVITE30");
+      if (hi === d.invite.hash) {
+        grantAccess(inp, (d.invite.days || 30) - 1);
+        $("gmodal").style.display = "none";
+        startApp();
+        return;
+      }
+    }
+
+    // ③ 再当成「主密码」试（站主用，推导口令后比对）
     msg.textContent = "按主密码验证中…（约 2 秒）";
     for (const off of [0, -1]) {
       const dateStr = bjToday(off);
