@@ -166,6 +166,87 @@ def fetch_market_structure():
     return out
 
 
+def pullback_setups(rows, min_pump=0.30, min_drop=0.15, max_drop=0.55,
+                    lookback=8, max_turn_up=0.15):
+    """暴涨 → 回落 → 止跌回升 的做多观察信号
+
+    回测（448 个暴涨事件）：回落≥25% + 止跌回升 + 止损10% + 持20天
+      144 笔，平均 +0.952R，盈亏比 2.17，t=1.64（未显著）
+      胜率仅 16~29%，靠少数大赚
+
+    判定顺序：
+      1. 前 lookback 个交易日内有过单日 ≥30% 的暴涨
+      2. 暴涨之后的最低价相对暴涨收盘回落 ≥15%（真回落，不是上影线）
+      3. 最新一根收盘上涨，但涨幅温和（≤15%，不是又一次拉盘）
+      4. 最新收盘仍在暴涨后高点下方
+    """
+    out = []
+    for m in rows:
+        bars = m.get("bars")
+        if not bars or len(bars) < 40:
+            continue
+        closed = bars[:-1]
+        n = len(closed)
+        if n < 30:
+            continue
+
+        # ① 找暴涨日（至少 1 个完整交易日之前）
+        pump_i = None
+        for k in range(2, lookback + 2):
+            idx = n - k
+            if idx < 1:
+                continue
+            prev = closed[idx - 1]["c"]
+            if prev > 0 and closed[idx]["c"] / prev - 1 >= min_pump:
+                pump_i = idx
+                break
+        if pump_i is None or pump_i >= n - 1:
+            continue
+
+        ref = closed[pump_i]["c"]
+        if ref <= 0:
+            continue
+
+        # ② 暴涨之后的最低点 → 真实回落深度
+        post = closed[pump_i + 1:]
+        if not post:
+            continue
+        low_after = min(b["l"] for b in post)
+        drop = 1 - low_after / ref
+        if drop < min_drop or drop > max_drop:
+            continue
+
+        # ③ 最新一根：温和收涨
+        last = closed[-1]
+        prev_day = closed[-2]
+        if not (last["c"] > prev_day["c"]):
+            continue
+        turn_up = last["c"] / prev_day["c"] - 1
+        if turn_up > max_turn_up:
+            continue
+
+        # ④ 还没回到暴涨高点
+        hi = max(b["h"] for b in closed[pump_i:])
+        if hi > 0 and last["c"] > hi * 0.98:
+            continue
+
+        pump_pct = (closed[pump_i]["c"] / closed[pump_i - 1]["c"] - 1) * 100
+        out.append({
+            "sym": m["sym"], "symbol": m["symbol"], "price": m["cur"],
+            "chg24": round(m.get("chg24", 0) * 100, 2),
+            "pump_pct": round(pump_pct, 1),
+            "days_since": n - 1 - pump_i,
+            "pullback": round(drop * 100, 1),
+            "high": round(hi, 8),
+            "last_chg": round(turn_up * 100, 2),
+            "stop": round(m["cur"] * 0.90, 8),
+            "qv": round(m["qv"] / 10000, 0),
+            "risk": m["risk"],
+        })
+    out.sort(key=lambda x: -x["pump_pct"])
+    return out
+
+
 def main():
     print("拉取币安合约列表...", flush=True)
     info = get_json("/fapi/v1/exchangeInfo")
@@ -288,8 +369,10 @@ def main():
     losers = [slim(m) for m in ranked[-8:] if m.get("chg24", 0) < 0]
     losers.reverse()
 
+    pbs = pullback_setups(rows)
+
     payload = {"updated":datetime.now(TZ).strftime("%Y-%m-%d %H:%M"),"source":"binance-futures",
-               "scanned":len(rows),"short":shorts[:10],
+               "scanned":len(rows),"short":shorts[:10],"pullback":pbs[:10],
                "gainers":gainers,"losers":losers,
                "crowded":[cslim(m) for m in crowded[:10]],
                "risky":[slim(m) for m in risky[:15]],"watch":[slim(m) for m in watch[:15]],
@@ -300,6 +383,13 @@ def main():
     print("--- 做空信号 ---")
     for s in shorts[:10]:
         print(f"  {s['sym']:<10} {s['symbol']:<14} 暴涨{s['pump_pct']:>6.1f}%  现价{s['price']:<12} 前20日{s['prior20']:>7.1f}%  量能{s['vol_ratio']:>6.2f}x")
+    print("\n--- 回踩回升（做多观察，未验证）---")
+    if not pbs:
+        print("  （无）")
+    for m in pbs[:8]:
+        print(f"  {m['sym']:<10} 暴涨{m['pump_pct']:>6.1f}%（{m['days_since']}天前）"
+              f"回落{m['pullback']:>5.1f}%  昨收{m['last_chg']:>+5.1f}%  现价{m['price']}")
+
     print("\n--- 24h 涨幅榜 ---")
     for m in gainers:
         print(f"  {m['sym']:<10} {m['chg24']:>+7.2f}%  现价{m['price']:<12} "
