@@ -470,8 +470,11 @@ async function scanAll() {
       const hh = Math.max.apply(null, seg.map(b => b.h));
       const ll = Math.min.apply(null, seg.map(b => b.l));
       const atr = atr14(closed);
-      return { sym, cur, hh, ll, atr, src: bars._src,
-               sig: cur > hh ? "L" : (cur < ll ? "S" : null) };
+      // 只有主流币走 Donchian 主系统；山寨币只做持仓跟踪，不出信号
+      // （否则会跟「暴涨→做空」的山寨策略打架）
+      const isMajor = CFG.COINS.indexOf(sym) >= 0;
+      return { sym, cur, hh, ll, atr, src: bars._src, isMajor,
+               sig: isMajor ? (cur > hh ? "L" : (cur < ll ? "S" : null)) : null };
     } catch (e) {
       return { sym, err: String(e.message || e).slice(0, 40) };
     }
@@ -665,7 +668,7 @@ function render(rows, sigs) {
     });
   }
 
-  h += '<h3>全部币种 · 按接近突破排序</h3>';
+  h += '<h3>主流币 · 按接近突破排序</h3>';
   // 计算每个币到最近突破位的距离，排序（已触发的排最前）
   const ranked = rows.map(r => {
     if (r.err) return { r, near: 999 };
@@ -687,6 +690,16 @@ function render(rows, sigs) {
       h += '<div class="w"><span class="n">' + r.sym + '</span>' +
            '<span class="u" style="grid-column:2/4;color:#19c07a">已触发 ' +
            (r.sig === "L" ? "做多" : "做空") + ' ↗</span></div>';
+      return;
+    }
+    if (!r.isMajor) {
+      // 山寨币：只跟踪持仓，不给主系统信号
+      const p2 = loadPos(r.sym);
+      h += '<div class="w"><span class="n">' + r.sym +
+        ' <span style="font-size:9px;color:#8ab4ff">山寨</span></span>' +
+        '<span class="u" style="grid-column:2/4;color:#5f6779;font-size:11.5px">' +
+        (p2 ? '持仓跟踪中（走山寨做空规则：持20天、不设止损）' : '仅跟踪价格') +
+        '</span></div>';
       return;
     }
     const isNear = closest && closest.r.sym === r.sym;
