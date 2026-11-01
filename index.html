@@ -103,6 +103,14 @@ border-radius:11px;padding:12px 13px;margin-bottom:9px}
 margin-left:auto;font-weight:700}
 .bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
 .bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
+.addpos{width:100%;padding:13px;border-radius:12px;border:1px dashed #2f6bff88;background:#0f1626;
+color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:12px}
+.addpos:active{background:#16224a}
+.nprow{display:flex;gap:8px;margin-bottom:12px}
+.nprow button{flex:1;padding:11px;border-radius:10px;border:1px solid #2a3448;background:#0a0c10;
+color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
+.nprow button.on.short{border-color:#19c07a;background:#0d1a14;color:#19c07a}
+.nprow button.on.long{border-color:#e8484f;background:#1a0f11;color:#ff8fa0}
 .capbar{display:flex;align-items:center;gap:9px;background:#12151d;border:1px solid #202633;
 border-radius:13px;padding:12px 15px;margin-bottom:14px;cursor:pointer}
 .capbar span{font-size:12.5px;color:#5f6779}
@@ -126,6 +134,8 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 <body>
 <h1>今日信号</h1>
 <div class="s" id="sub">Donchian 20 · 日线</div>
+
+<button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
 <div class="capbar" onclick="openCap()">
   <span>账户权益</span>
@@ -178,6 +188,38 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
     <div class="macts">
       <button onclick="aClose()">取消</button>
       <button class="p" onclick="aSave()">确认加仓</button>
+    </div>
+  </div>
+</div>
+
+<!-- 手动记录持仓 -->
+<div class="modal" id="npmodal">
+  <div class="mbox">
+    <div class="mhead">记录我的持仓</div>
+    <div class="mrow">
+      <label>币种（如 AIN、BTC）</label>
+      <input id="np-sym" type="text" autocapitalize="characters" placeholder="AIN" oninput="npCheck()">
+    </div>
+    <div class="nprow">
+      <button id="np-s" class="on short" onclick="npDir('S')">做空</button>
+      <button id="np-l" onclick="npDir('L')">做多</button>
+    </div>
+    <div class="mrow">
+      <label>入场均价</label>
+      <input id="np-entry" type="number" step="any" inputmode="decimal" oninput="npCheck()">
+    </div>
+    <div class="mrow">
+      <label>数量（币安 App 里看「数量」）</label>
+      <input id="np-qty" type="number" step="any" inputmode="decimal" oninput="npCheck()">
+    </div>
+    <div class="mrow">
+      <label>占用保证金 USDT</label>
+      <input id="np-margin" type="number" step="any" inputmode="decimal" oninput="npCheck()">
+    </div>
+    <div class="mmsg" id="np-msg"></div>
+    <div class="macts">
+      <button onclick="npClose()">取消</button>
+      <button class="p" onclick="npSave()">确认</button>
     </div>
   </div>
 </div>
@@ -592,7 +634,9 @@ function render(rows, sigs) {
           ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
             (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
           : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>') +
-        '<div class="acts"><a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a></div>' +
+        '<div class="acts">' +
+        '<a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a>' +
+        '<a onclick="openMargin(\'' + r.sym + '\')">💰 保证金</a></div>' +
         (info.shouldClose
           ? '<div class="warn" style="background:#1a0f11;border-color:#5c2028;color:#ff9aa6">🚪 ' +
             info.closeReason + ' → 现在平仓</div>' +
@@ -754,6 +798,68 @@ function onEntryEdit() {
   const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
   $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
   updateModalMsg();
+}
+
+/* ============ 手动记录持仓 ============ */
+let _npDir = "S";
+
+function openNewPos() {
+  _npDir = "S";
+  $("np-sym").value = "";
+  $("np-entry").value = "";
+  $("np-qty").value = "";
+  $("np-margin").value = "";
+  $("np-msg").textContent = "";
+  npDir("S");
+  $("npmodal").classList.add("on");
+}
+
+function npDir(d) {
+  _npDir = d;
+  $("np-s").className = d === "S" ? "on short" : "";
+  $("np-l").className = d === "L" ? "on long" : "";
+  npCheck();
+}
+
+function npCheck() {
+  const sym = ($("np-sym").value || "").trim().toUpperCase();
+  const e = parseFloat($("np-entry").value);
+  const q = parseFloat($("np-qty").value);
+  const m = parseFloat($("np-margin").value);
+  const msg = $("np-msg");
+  msg.classList.remove("bad");
+  if (!sym) { msg.textContent = "填入币种"; return; }
+  if (loadPos(sym)) { msg.textContent = sym + " 已经有记录了，可在卡片里修改"; msg.classList.add("bad"); return; }
+  if (!isFinite(e) || !isFinite(q) || e <= 0 || q <= 0) {
+    msg.textContent = "填入入场价和数量";
+    return;
+  }
+  const notional = e * q;
+  if (isFinite(m) && m > 0) {
+    msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　杠杆 <b style='color:#8ab4ff'>" +
+      (notional / m).toFixed(2) + "x</b>";
+  } else {
+    msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　建议保证金 <b class='good'>" +
+      notional.toFixed(2) + "U</b>（1x）";
+  }
+}
+
+function npClose() { $("npmodal").classList.remove("on"); }
+
+function npSave() {
+  const sym = ($("np-sym").value || "").trim().toUpperCase();
+  const e = parseFloat($("np-entry").value);
+  const q = parseFloat($("np-qty").value);
+  let m = parseFloat($("np-margin").value);
+  if (!sym || !isFinite(e) || !isFinite(q) || e <= 0 || q <= 0) { alert("填写有误"); return; }
+  if (!isFinite(m) || m <= 0) m = e * q;
+  savePos(sym, {
+    dir: _npDir, entry: e, sl: _npDir === "S" ? e * 2 : e * 0.5, ext: e,
+    qty: q, lev: (e * q) / m, margin: m, marginMode: "isolated",
+    date: new Date().toISOString().slice(0, 10), alt: true,
+  });
+  npClose();
+  scanAll();
 }
 
 /* ============ 账户余额 ============ */
