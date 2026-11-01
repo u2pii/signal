@@ -46,11 +46,16 @@ def main():
     yest = (datetime.now(TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     tok_today = make_token(pw, today)
+    # 30 天邀请码：由主密码派生，长期不变，只给信任的朋友
+    invite = make_token(pw, "INVITE30")
+
     payload = {
         "date": today,
         "hash": verify_hash(tok_today, today),
         # 昨天生成的仍然有效，避免 0 点前后卡住
         "prev": {"date": yest, "hash": verify_hash(make_token(pw, yest), yest)},
+        # 30 天邀请码（静态，泄露了就改主密码重新生成）
+        "invite": {"hash": h(invite + "|INVITE30"), "days": 30},
         "updated": datetime.now(TZ).strftime("%Y-%m-%d %H:%M"),
     }
     with open(OUT, "w", encoding="utf-8") as f:
