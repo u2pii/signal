@@ -233,6 +233,25 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   </div>
 </div>
 
+<!-- 口令门禁 -->
+<div class="modal" id="gmodal" style="display:flex">
+  <div class="mbox">
+    <div class="mhead">🔒 需要口令</div>
+    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
+      这个工具不公开。请向分享给你的人索要今天的口令。
+    </div>
+    <div class="mrow">
+      <label>今日口令</label>
+      <input id="g-tok" type="text" autocapitalize="characters" placeholder="10 位字母数字"
+             style="text-transform:uppercase;letter-spacing:3px;text-align:center;font-family:ui-monospace,monospace;font-size:19px">
+    </div>
+    <div class="mmsg" id="g-msg"></div>
+    <div class="macts">
+      <button class="p" onclick="checkToken()" style="flex:1">进入</button>
+    </div>
+  </div>
+</div>
+
 <!-- 首次使用引导 -->
 <div class="modal" id="wmodal">
   <div class="mbox">
@@ -1096,6 +1115,66 @@ function npSave() {
   scanAll();
 }
 
+/* ============ 口令门禁 ============ */
+const ACCESS_KEY = "access_ok";
+
+function bjToday(off) {
+  const ms = Date.now() + 8 * 3600e3 + (off || 0) * 86400e3;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+async function sha256hex(str) {
+  const buf = new TextEncoder().encode(str);
+  const d = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function hasAccess() {
+  try {
+    const v = localStorage.getItem(ACCESS_KEY);
+    if (!v) return false;
+    const o = JSON.parse(v);
+    // 当天或昨天通过过就算
+    return o.date === bjToday(0) || o.date === bjToday(-1);
+  } catch (e) { return false; }
+}
+
+function grantAccess(tok) {
+  try {
+    localStorage.setItem(ACCESS_KEY, JSON.stringify({ date: bjToday(0), tok: tok }));
+  } catch (e) {}
+}
+
+async function checkToken() {
+  const el = $("g-tok"), msg = $("g-msg");
+  const tok = (el.value || "").trim().toUpperCase();
+  msg.classList.remove("bad");
+  if (tok.length < 6) { msg.textContent = "口令长度不对"; msg.classList.add("bad"); return; }
+  msg.textContent = "验证中…";
+  try {
+    const r = await fetch("token.json?t=" + Date.now());
+    if (!r.ok) throw new Error("读不到 token.json");
+    const d = await r.json();
+    const h = await sha256hex(tok + "|" + d.date);
+    let ok = (h === d.hash);
+    if (!ok && d.prev) {
+      const h2 = await sha256hex(tok + "|" + d.prev.date);
+      ok = (h2 === d.prev.hash);
+    }
+    if (ok) {
+      grantAccess(tok);
+      $("gmodal").style.display = "none";
+      startApp();
+    } else {
+      msg.textContent = "口令不对，或已过期（每天更换）";
+      msg.classList.add("bad");
+    }
+  } catch (e) {
+    msg.textContent = "验证失败：" + e.message;
+    msg.classList.add("bad");
+  }
+}
+
 /* ============ 首次引导 / 分享 ============ */
 function needOnboard() {
   try { return !localStorage.getItem("capital"); } catch (e) { return false; }
@@ -1604,20 +1683,25 @@ function setRisk(v) {
   $("hint").textContent = "已切换到 " + (v * 100) + "% 风险";
 }
 
-loadCap();
-refreshCapBar();
-if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 400);
-setTimeout(refreshCapBar, 500);
+/* ============ 启动入口（先过口令门禁） ============ */
+let _appStarted = false;
 
-/* 恢复上次选择的风险档 */
-try {
-  const saved = parseFloat(localStorage.getItem("risk"));
-  if (saved && saved > 0 && saved <= 0.5) CFG.RISK = saved;
-} catch (e) {}
-renderRiskBar();
+function startApp() {
+  if (_appStarted) return;
+  _appStarted = true;
+  $("gmodal").style.display = "none";
 
-/* 页面加载：有 3 分钟内缓存就显示缓存，否则自动检查 */
-(function () {
+  loadCap();
+  refreshCapBar();
+  if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 400);
+  setTimeout(refreshCapBar, 500);
+
+  try {
+    const saved = parseFloat(localStorage.getItem("risk"));
+    if (saved && saved > 0 && saved <= 0.5) CFG.RISK = saved;
+  } catch (e) {}
+  renderRiskBar();
+
   let shown = false;
   try {
     const c = localStorage.getItem("last_result");
@@ -1632,7 +1716,16 @@ renderRiskBar();
     }
   } catch (e) {}
   if (!shown) setTimeout(scanAll, 200);
-})();
+}
+
+if (!crypto.subtle) {
+  $("g-msg").textContent = "必须用 https 打开（不能是本地文件）";
+  $("g-msg").classList.add("bad");
+} else if (hasAccess()) {
+  startApp();
+} else {
+  $("gmodal").style.display = "flex";
+}
 
 /* 保存结果供 mark() 重渲染 */
 const _origRender = render;
