@@ -233,6 +233,28 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   </div>
 </div>
 
+<!-- 首次使用引导 -->
+<div class="modal" id="wmodal">
+  <div class="mbox">
+    <div class="mhead">👋 欢迎使用</div>
+    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
+      这个工具帮你盯两件事：<br>
+      · <b style="color:#fff">主流币</b>突破 20 日高低点 → 开仓信号<br>
+      · <b style="color:#fff">山寨币</b>单日暴涨 30% → 做空信号（持 20 天）<br><br>
+      数据每天自动更新，账户和持仓只存在<b style="color:#fff">你这台手机</b>上。
+    </div>
+    <div class="mrow">
+      <label>先填一下你的账户余额（USDT）</label>
+      <input id="w-cap" type="number" step="any" inputmode="decimal" placeholder="100">
+    </div>
+    <div class="mmsg" id="w-msg">之后可以随时点顶部余额修改</div>
+    <div class="macts">
+      <button onclick="wSkip()">稍后设置</button>
+      <button class="p" onclick="wSave()">开始使用</button>
+    </div>
+  </div>
+</div>
+
 <!-- 已结算记录 -->
 <div class="modal" id="smodal">
   <div class="mbox">
@@ -290,7 +312,8 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <div class="ft">规则固定：突破 20 日高/低 → 开仓<br>止损 1.5 ATR · 杠杆按整数算 · 最多 2 仓</div>
 <div class="clear">
-  <a href="javascript:openSettle()">已结算记录</a>
+  <a href="javascript:shareApp()">分享给朋友</a>
+  <a href="javascript:openSettle()" style="margin-left:18px">已结算记录</a>
   <a href="javascript:showAllPos()" style="margin-left:18px">查看全部记录</a>
   <a href="javascript:resetAll()" style="margin-left:18px">清空全部记录</a>
 </div>
@@ -1033,6 +1056,43 @@ function npSave() {
   scanAll();
 }
 
+/* ============ 首次引导 / 分享 ============ */
+function needOnboard() {
+  try { return !localStorage.getItem("capital"); } catch (e) { return false; }
+}
+
+function openWelcome() {
+  $("w-cap").value = "";
+  $("wmodal").classList.add("on");
+}
+
+function wSkip() { $("wmodal").classList.remove("on"); }
+
+function wSave() {
+  const v = parseFloat($("w-cap").value);
+  if (!isFinite(v) || v <= 0) { alert("填入你的账户余额"); return; }
+  BASE_CAP = v;
+  CFG.CAPITAL = v;
+  try { localStorage.setItem("capital", String(v)); } catch (e) {}
+  $("wmodal").classList.remove("on");
+  refreshCapBar();
+  scanAll();
+}
+
+function shareApp() {
+  const url = location.origin + location.pathname.replace(/index\.html$/, "");
+  const txt = "交易信号 + 山寨做空扫描：" + url;
+  if (navigator.share) {
+    navigator.share({ title: "交易信号", text: "每天看一眼，有信号才动手", url: url }).catch(() => {});
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => alert("链接已复制：\n\n" + url)).catch(() => prompt("手动复制", url));
+  } else {
+    prompt("复制这个链接发给朋友", url);
+  }
+}
+
 /* ============ 已结算记录 ============ */
 const SETTLE_KEY = "settlements";
 
@@ -1487,6 +1547,7 @@ function setRisk(v) {
 
 loadCap();
 refreshCapBar();
+if (needOnboard()) setTimeout(openWelcome, 400);
 setTimeout(refreshCapBar, 500);
 
 /* 恢复上次选择的风险档 */
