@@ -744,6 +744,59 @@ function sizePosition(s) {
   s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;   // 明显超过目标（取整导致）
 }
 
+/* 手动改持仓的名义（= 改数量） */
+function editPosNotional(sym) {
+  const p = loadPos(sym);
+  if (!p) return;
+  const cur = p.qty * p.entry;
+  const inp = prompt(
+    "改 " + sym + " 的名义持仓量（USDT）\n\n" +
+    "当前 " + cur.toFixed(2) + "U（数量 " + p.qty + " × 开仓价 " + p.entry + "）\n\n" +
+    "改成多少？数量会自动重算",
+    cur.toFixed(2));
+  if (inp === null) return;
+  const want = parseFloat(inp);
+  if (!isFinite(want) || want <= 0) { alert("金额有误"); return; }
+  p.qty = want / p.entry;
+  savePos(sym, p);
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+/* 手动改名义持仓量（风险随之变化） */
+function editSigNotional(sym) {
+  const list = (window._last && window._last.sigs) || [];
+  const s = list.find(x => x.sym === sym);
+  if (!s) return;
+  const cur = s.notional;
+  const inp = prompt(
+    "改 " + sym + " 的名义持仓量（USDT）\n\n" +
+    "当前 " + cur.toFixed(1) + "U，按风险 " + (CFG.RISK * 100) + "% 算出来的\n" +
+    "止损距离 " + s.dist.toFixed(2) + "%\n\n" +
+    "改大 → 风险变大；改小 → 风险变小",
+    cur.toFixed(0));
+  if (inp === null) return;
+  const want = parseFloat(inp);
+  if (!isFinite(want) || want <= 0) { alert("金额有误"); return; }
+
+  const step = STEP[s.sym] || 0.001;
+  const dec = String(step).split(".")[1] ? String(step).split(".")[1].length : 0;
+  let qty = Math.floor((want / s.cur) / step) * step;
+  qty = +qty.toFixed(dec);
+
+  s.qty = qty;
+  s.notional = qty * s.cur;
+  s.risk = s.notional * (s.dist / 100);
+  s.riskPct = (s.risk / CFG.CAPITAL) * 100;
+  s.tooSmall = s.notional < MIN_NOTIONAL;
+  s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;
+  // 杠杆至少要能装下
+  const minLev = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
+  if (s.lev < minLev) s.lev = minLev;
+  s.margin = s.notional / s.lev;
+
+  render(window._last.rows, list);
+}
+
 /* 单笔切换杠杆（只改保证金占用，不改数量/风险） */
 function setSigLev(sym, lev) {
   const list = (window._last && window._last.sigs) || [];
@@ -792,7 +845,8 @@ function render(rows, sigs) {
         '<div><span>止损</span><b class="stop" onclick="copyOne(\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">' + f(s.stop) + ' 📋</b></div>' +
         '<div><span>杠杆</span><b class="lev">' + s.lev + 'x 📋</b></div>' +
         '<div><span>数量</span><b onclick="copyOne(\'' + qtyStr(s) + '\',this)">' + qtyStr(s) + ' 📋</b></div>' +
-        '<div><span>名义</span><b>' + s.notional.toFixed(1) + 'U</b></div>' +
+        '<div><span>名义</span><b onclick="editSigNotional(\'' + s.sym + '\')" style="color:#8ab4ff">' +
+          s.notional.toFixed(1) + 'U ✏️</b></div>' +
         '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
         '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
         '</div>' +
@@ -865,7 +919,8 @@ function render(rows, sigs) {
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
           (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
-        '<div><span>名义</span><b>' + (p.qty * p.entry).toFixed(2) + 'U</b></div>' +
+        '<div><span>名义</span><b onclick="editPosNotional(\'' + r.sym + '\')" style="color:#8ab4ff">' +
+          (p.qty * p.entry).toFixed(2) + 'U ✏️</b></div>' +
         '<div><span>价格变动</span><b>' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
