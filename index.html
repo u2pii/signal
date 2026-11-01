@@ -744,6 +744,22 @@ function sizePosition(s) {
   s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;   // 明显超过目标（取整导致）
 }
 
+/* 持仓卡片上直接改杠杆 */
+function setPosLev(sym, lev) {
+  const p = loadPos(sym);
+  if (!p) return;
+  const notional = p.qty * p.entry;
+  const mg = notional / lev;
+  p.lev = lev;
+  p.margin = mg;
+  savePos(sym, p);
+  if (window._last) render(window._last.rows, window._last.sigs);
+  const liq = p.dir === "L" ? p.entry * (1 - 1 / lev) : p.entry * (1 + 1 / lev);
+  alert("杠杆已改为 " + lev + "x\n\n" +
+        "保证金 " + mg.toFixed(2) + "U\n" +
+        "强平价约 " + (liq >= 1 ? liq.toFixed(2) : liq.toFixed(6)));
+}
+
 /* 手动改持仓的名义（= 改数量） */
 function editPosNotional(sym) {
   const p = loadPos(sym);
@@ -944,6 +960,14 @@ function render(rows, sigs) {
             ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
               (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
             : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>')) +
+        '<div class="levrow">' +
+          '<span class="levlabel">杠杆</span>' +
+          [1,2,3,5,10].map(function(L){
+            var on = Math.abs((p.lev || 1) - L) < 0.01;
+            return '<button class="levbtn' + (on ? ' on' : '') +
+              '" onclick="setPosLev(\'' + r.sym + '\',' + L + ')">' + L + 'x</button>';
+          }).join('') +
+        '</div>' +
         '<div class="acts">' +
         '<a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a>' +
         '<a onclick="openMargin(\'' + r.sym + '\')">💰 保证金</a></div>' +
