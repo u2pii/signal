@@ -28,7 +28,7 @@ CFG = {
 }
 
 STEP = {"BTC": 0.001, "ETH": 0.001, "SOL": 0.01, "BNB": 0.01, "DOGE": 1, "ADA": 1}
-MIN_NOTIONAL = 5
+MIN_NOTIONAL = 5.1
 
 
 def get(url, retries=3):
