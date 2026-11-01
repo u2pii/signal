@@ -957,6 +957,13 @@ function buildHoldCards(list, title) {
 function render(rows, sigs) {
   let h = "";
 
+  // 持仓按页签拆分（必须放在最前面，下面会用到）
+  const allHold = rows._holdings || [];
+  const holds = allHold.filter(function(hr){
+    const altP = (hr.pos.alt === true) || isAltSym(hr.sym);
+    return TAB === "alt" ? altP : !altP;
+  });
+
   const errs = rows.filter(r => r.err);
   if (errs.length) {
     h += '<div class="err">取数失败：' + errs.map(r => r.sym).join("、") +
@@ -1016,11 +1023,6 @@ function render(rows, sigs) {
   }
 
   /* ---- 持仓中：移动止损 ---- */
-  const allHold = rows._holdings || [];
-  const holds = allHold.filter(function(h){
-    const altP = (h.pos.alt === true) || isAltSym(h.sym);
-    return TAB === "alt" ? altP : !altP;
-  });
   h += buildHoldCards(holds, '我的持仓');
 
   h += '<h3>主流币 · 按接近突破排序</h3>';
@@ -1665,6 +1667,11 @@ function setTAB(t) {
 try {
   const saved = localStorage.getItem("tab");
   if (saved === "main" || saved === "alt") TAB = saved;
+} catch (e) {}
+// 支持 ?tab=alt 直接打开山寨页
+try {
+  const qp = new URLSearchParams(location.search).get("tab");
+  if (qp === "main" || qp === "alt") TAB = qp;
 } catch (e) {}
 
 /* ============ 账户余额 ============ */
