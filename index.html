@@ -181,7 +181,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.3 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.4 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -446,7 +446,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.3";   // 页面版本，用来判断是不是旧缓存
+const VER = "v3.4";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1233,46 +1233,88 @@ function altSigHTML() {
 }
 
 /* ---- 山寨 · 观察子页（高危 + 观察）---- */
+/* ---- 山寨 · 观察子页：可能暴涨 / 可能暴跌 ---- */
 function altWatchHTML() {
-  const risky = ALT.risky || [], watch = ALT.watch || [];
-  let h = '<h3>山寨观察 · ' + (ALT.updated || "") + '</h3>';
-  h += '<div class="bigcard"><div class="bchead">' +
-       '<span>⚠️ 高危名单</span><span style="font-size:11px;color:#5f6779">' +
-       risky.length + ' 个</span></div>';
-  h += '<div class="sectrule" style="border-color:#3a1a1f;background:#160b0d">' +
-       '涨得猛 + 前期已涨很多 + 量能不足。历史上这类币 5 天内跌超 50% 概率约 20%。' +
-       '<br>别买；持有的话考虑减仓。</div>';
-  if (risky.length) {
-    risky.forEach(a => {
-      h += '<div class="altcard bad"><div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="ab">风险 ' + a.risk + '</span></div>' +
-        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
-        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
-        '　日最大 <b class="bad">+' + a.max_day + '%</b>' +
-        '　20日 <b class="bad">+' + a.prior20 + '%</b></div>' +
-        '<div class="aline">量能 <b>' + a.vol_ratio + 'x</b>　距5日高点 <b>' + a.drawdown5 + '%</b></div></div>';
+  const hot = ALT.hot || [], cold = ALT.cold || [];
+  let h = '<h3>异动观察 · ' + (ALT.updated || "") + '</h3>';
+
+  /* —— 可能暴涨 —— */
+  h += '<div class="bigcard" style="border-color:#1e3a28">';
+  h += '<div class="bchead"><span style="color:#4fe0a8">🚀 可能暴涨</span>' +
+       '<span style="font-size:11px;color:#5f6779">' + hot.length + ' 个</span></div>';
+  h += '<div class="sectrule" style="border-color:#1e3a28;background:#0b1710;color:#8fd9b6">' +
+       '研究结论：<b>已经在动的币更容易暴涨</b>（不是横盘蓄势）。<br>' +
+       '综合 6 个特征打分：振幅 · 距20日低点 · 5日涨幅 · 量比 · ATR扩张 · 前1日涨幅<br>' +
+       '<span style="color:#4fe0a8">回测：评分前 1% 的当日暴涨率 8.32%，是平均的 12.5 倍</span>' +
+       '　<span style="opacity:.7">（92% 的时候仍不涨，只是概率高）</span></div>';
+  if (hot.length) {
+    hot.forEach(a => {
+      h += '<div class="altcard" style="border-left:2.5px solid #1e7a52">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="aw" style="background:#0b1710;color:#4fe0a8">评分 ' + a.score + '</span></div>' +
+        '<div class="aline">现价 <b>' + f(a.price) + '</b>' +
+        '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
+        '<div class="aline">5日 <b class="good">+' + a.r5 + '%</b>' +
+        '　振幅 <b>' + a.amp + '%</b>' +
+        '　量比 <b class="good">' + a.vr5 + 'x</b></div>' +
+        '<div class="aline" style="font-size:11px;color:#5f6779">' +
+        '距20日低 +' + a.gap + '%　ATR扩张 ' + a.atrc + 'x　距20日高 ' + a.to_hi + '%</div>' +
+        '</div>';
     });
-  } else h += '<div class="sc2empty">无</div>';
+  } else h += '<div class="sc2empty">今天没有</div>';
   h += '</div>';
 
-  h += '<div class="bigcard"><div class="bchead">' +
-       '<span>👀 观察名单</span><span style="font-size:11px;color:#5f6779">' +
-       watch.length + ' 个</span></div>';
-  h += '<div class="sectrule" style="border-color:#1e2c44;background:#0e1520;color:#8ab4ff">' +
-       '成交量突然放大但价格还没大涨，可能有异动。' +
-       '<br><span style="opacity:.75">回测证明按这个做单没有统计优势，纯观察</span></div>';
-  if (watch.length) {
-    watch.forEach(a => {
-      h += '<div class="altcard"><div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="aw">观察 ' + a.watch + '</span></div>' +
-        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
-        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
-        '　量能 <b class="good">' + a.now_vol + 'x</b>' +
-        '　距20日高 <b>' + a.to_high + '%</b></div>' +
-        '<div class="aline">20日涨跌 <b>' + a.prior20 + '%</b>　日均振幅 <b>' + a.amp + '%</b></div></div>';
+  /* —— 可能暴跌 —— */
+  h += '<div class="bigcard" style="border-color:#3a1a1f">';
+  h += '<div class="bchead"><span style="color:#ff9aa6">💀 可能暴跌</span>' +
+       '<span style="font-size:11px;color:#5f6779">' + cold.length + ' 个</span></div>';
+  h += '<div class="sectrule" style="border-color:#3a1a1f;background:#160b0d;color:#e8a0aa">' +
+       '已经涨过一波、且还没跌透的币。<b>这类是做空标的，不是买入标的。</b><br>' +
+       '<span style="opacity:.8">历史：暴涨后 20 天中位数 +20.6%（做空盈利），但 31% 会继续涨</span></div>';
+  if (cold.length) {
+    cold.forEach(a => {
+      h += '<div class="altcard bad" style="border-left:2.5px solid #8a2b36">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="ab">评分 ' + a.score + '</span></div>' +
+        '<div class="aline">现价 <b>' + f(a.price) + '</b>' +
+        '　24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
+        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
+        '<div class="aline">5日 <b class="bad">+' + a.r5 + '%</b>' +
+        '　20日 <b class="bad">+' + a.r20 + '%</b></div>' +
+        '<div class="aline" style="font-size:11px;color:#5f6779">' +
+        '距20日高 ' + a.to_hi + '%　量比 ' + a.vr5 + 'x　振幅 ' + a.amp + '%</div>' +
+        '</div>';
     });
-  } else h += '<div class="sc2empty">无</div>';
+  } else h += '<div class="sc2empty">今天没有</div>';
   h += '</div>';
+
+  /* —— 旧的高危 / 观察，折叠 —— */
+  const risky = ALT.risky || [], watch = ALT.watch || [];
+  if (risky.length || watch.length) {
+    h += '<details class="morebox"><summary>旧名单：高危 ' + risky.length +
+         ' 个 · 观察 ' + watch.length + ' 个（点开）</summary>';
+    if (risky.length) {
+      risky.forEach(a => {
+        h += '<div class="altcard bad"><div class="atop"><span class="anm">' + a.sym + '</span>' +
+          '<span class="ab">风险 ' + a.risk + '</span></div>' +
+          '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
+          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
+          '　日最大 <b class="bad">+' + a.max_day + '%</b>' +
+          '　20日 <b class="bad">+' + a.prior20 + '%</b></div></div>';
+      });
+    }
+    if (watch.length) {
+      watch.forEach(a => {
+        h += '<div class="altcard"><div class="atop"><span class="anm">' + a.sym + '</span>' +
+          '<span class="aw">观察 ' + a.watch + '</span></div>' +
+          '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
+          '　量能 <b class="good">' + a.now_vol + 'x</b></div></div>';
+      });
+    }
+    h += '</details>';
+  }
   return h;
 }
 
