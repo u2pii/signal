@@ -1220,13 +1220,32 @@ async function checkToken() {
 
 /* ============ 首次引导 / 分享 ============ */
 function needOnboard() {
-  try { return !localStorage.getItem("capital"); } catch (e) { return false; }
+  // 已有余额或已有持仓记录 → 说明是老用户，不再引导填余额
+  try {
+    if (localStorage.getItem("capital")) return false;
+    const hasPos = Object.keys(localStorage).some(k => k.indexOf("pos_") === 0);
+    if (hasPos) return false;
+    return true;
+  } catch (e) { return false; }
+}
+
+function hasAnyData() {
+  try {
+    if (localStorage.getItem("capital")) return true;
+    return Object.keys(localStorage).some(k => k.indexOf("pos_") === 0);
+  } catch (e) { return false; }
 }
 
 function openWelcome() {
-  $("w-cap").value = "";
-  $("w-step1").style.display = "";
-  $("w-step2").style.display = "none";
+  if (hasAnyData()) {
+    // 老用户：跳过填余额，只补看逐仓警告
+    $("w-step1").style.display = "none";
+    $("w-step2").style.display = "";
+  } else {
+    $("w-cap").value = "";
+    $("w-step1").style.display = "";
+    $("w-step2").style.display = "none";
+  }
   $("wmodal").classList.add("on");
 }
 
@@ -1236,7 +1255,8 @@ function wSkip() {
 }
 
 function wNext(skipBalance) {
-  if (!skipBalance) {
+  // 老用户已经有钱包数据，绝不用引导里的值覆盖
+  if (!skipBalance && !hasAnyData()) {
     const v = parseFloat($("w-cap").value);
     if (!isFinite(v) || v <= 0) { alert("填入你的账户余额，或点「稍后设置」"); return; }
     BASE_CAP = v;
@@ -1736,7 +1756,7 @@ function startApp() {
 
   loadCap();
   refreshCapBar();
-  if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 400);
+  if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 600);
   setTimeout(refreshCapBar, 500);
 
   try {
