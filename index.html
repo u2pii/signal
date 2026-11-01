@@ -1115,6 +1115,38 @@ async function renderAlts() {
          '<br>⚠️ 只在币安有该合约时才能做；小币深度差，用限价单。</div></div>';
   }
 
+  /* ---- 回踩回升（做多观察，未验证） ---- */
+  const pbs = ALT.pullback || [];
+  if (pbs.length) {
+    h += '<div class="shortbox" style="background:#141008;border-color:#3a2e10">' +
+      '<div class="shorthead" style="color:#f0be5a">🔄 回踩回升（做多观察）</div>' +
+      '<div class="shortrule" style="background:#161106">' +
+        '暴涨后回落，昨天收涨 = 洗盘结束的信号<br>' +
+        '<b>建议：入场用现价，止损 -10%，持 20 天，别设止盈</b><br>' +
+        '<span style="color:#f0be5a">⚠️ 144 笔样本 t=1.64，未达统计显著，胜率仅 16~29%，靠少数大赚</span>' +
+      '</div>';
+    pbs.forEach(a => {
+      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
+      const qty = posUsd / a.price;
+      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
+      h += '<div class="scard" style="border-left-color:#f0be5a">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="sbadge" style="background:#3a2e10;color:#f0be5a">暴涨 +' + a.pump_pct + '%</span></div>' +
+        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
+        '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
+        '<div class="aline">已回落 <b style="color:#f0be5a">-' + a.pullback + '%</b>' +
+        '（' + a.days_since + ' 天前暴涨）　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
+        '<div class="aline">参考止损 <b style="color:#ffc94d">' + f(a.stop) + '</b>（-10%）　仓位 ' +
+        posUsd.toFixed(2) + 'U　数量 ' + qs + '</div>' +
+        '<div class="acts">' +
+        '<a class="p" style="background:#c9a227;color:#1a1408" ' +
+        'onclick="copyPullback(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ',this)">📋 复制做多参数</a>' +
+        '</div></div>';
+    });
+    h += '</div>';
+  }
+
   if (ALT.risky && ALT.risky.length) {
     h += '<div class="warn" style="margin-bottom:10px">⚠️ <b>高危名单</b>：涨得猛 + 前期已涨很多 + 量能不足。' +
          '历史上这类币 5 天内跌超 50% 的概率约 20%，别买、持有的话考虑减仓。</div>';
@@ -1930,6 +1962,22 @@ function markAlt(sym, price, usd, qty, el) {
   });
   if (window._last) render(window._last.rows, window._last.sigs);
   scanAll();
+}
+
+/* 复制回踩做多参数 */
+function copyPullback(sym, price, stop, qty, usd, el) {
+  const txt = sym + " 做多（回踩回升）\n" +
+              "入场 " + price + "\n" +
+              "止损 " + stop + "（-10%）\n" +
+              "数量 " + qty + "\n" +
+              "仓位 " + usd.toFixed(2) + "U\n" +
+              "计划持有 20 天，不设止盈";
+  const done = () => {
+    if (el) { const o = el.textContent; el.textContent = "✅ 已复制"; setTimeout(() => el.textContent = o, 1600); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else { fallbackCopy(txt, done); }
 }
 
 /* 复制做空参数 */
