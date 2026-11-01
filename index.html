@@ -181,7 +181,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.2 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -446,6 +446,8 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
+const VER = "v3.2";   // 页面版本，用来判断是不是旧缓存
+
 const CFG = {
   N: 20,            // 突破周期
   K_SL: 1.5,        // 初始止损 ATR 倍数
@@ -729,7 +731,7 @@ async function scanAll() {
   btn.textContent = "🔍 重新检查";
   $("hint").textContent = "点上面按钮可以重新检查";
   const srcSet = [...new Set(rows.filter(r => !r.err).map(r => r.src).filter(Boolean))];
-  $("sub").textContent = "Donchian 20 · 日线 · " +
+  $("sub").textContent = VER + " · Donchian 20 · 日线 · " +
     new Date().toLocaleString("zh-CN", { hour12: false }) +
     (srcSet.length ? "  ·  数据：" + srcSet.join("/") : "");
 }
