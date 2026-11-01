@@ -103,6 +103,7 @@ border-radius:11px;padding:12px 13px;margin-bottom:9px}
 margin-left:auto;font-weight:700}
 .bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
 .bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
+.acts a.closebtn{background:#1a1216;color:#c98b96;border:1px solid #3a2830}
 .addpos{width:100%;padding:13px;border-radius:12px;border:1px dashed #2f6bff88;background:#0f1626;
 color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:12px}
 .addpos:active{background:#16224a}
@@ -272,7 +273,10 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </div>
 
 <div class="ft">规则固定：突破 20 日高/低 → 开仓<br>止损 1.5 ATR · 杠杆按整数算 · 最多 2 仓</div>
-<div class="clear"><a href="javascript:resetAll()">清空开仓记录</a></div>
+<div class="clear">
+  <a href="javascript:showAllPos()">查看全部记录</a>
+  <a href="javascript:resetAll()" style="margin-left:18px">清空全部记录</a>
+</div>
 
 <script>
 /* ============ 配置 ============ */
@@ -421,7 +425,16 @@ function applySl(sym) {
 function closePos(sym) {
   const p = loadPos(sym);
   if (!p) return;
-  if (!confirm("确认已在币安平掉 " + sym + " 的仓？")) return;
+  const r = (window._last && window._last.rows || []).find(x => x.sym === sym);
+  let info = "";
+  if (r) {
+    const pnlPct = (r.cur / p.entry - 1) * 100 * (p.dir === "L" ? 1 : -1);
+    const pnlUsd = p.qty * r.cur * (pnlPct / 100);
+    info = "\n\n当前盈亏：" + (pnlPct >= 0 ? "+" : "") + pnlPct.toFixed(2) + "%" +
+           "（" + (pnlUsd >= 0 ? "+" : "") + pnlUsd.toFixed(2) + "U）";
+  }
+  if (!confirm("确认平掉 / 删除 " + sym + " 这条记录？" + info +
+               "\n\n（只删 App 里的记录，不影响你在币安的实际持仓）")) return;
   del(sym);
   if (window._last) render(window._last.rows, window._last.sigs);
 }
@@ -637,6 +650,7 @@ function render(rows, sigs) {
         '<div class="acts">' +
         '<a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a>' +
         '<a onclick="openMargin(\'' + r.sym + '\')">💰 保证金</a></div>' +
+        '<div class="acts"><a class="closebtn" onclick="closePos(\'' + r.sym + '\')">✅ 我已平仓 / 删除记录</a></div>' +
         (info.shouldClose
           ? '<div class="warn" style="background:#1a0f11;border-color:#5c2028;color:#ff9aa6">🚪 ' +
             info.closeReason + ' → 现在平仓</div>' +
@@ -798,6 +812,25 @@ function onEntryEdit() {
   const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
   $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
   updateModalMsg();
+}
+
+/* 查看并管理全部持仓记录 */
+function showAllPos() {
+  const keys = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0);
+  if (!keys.length) { alert("没有任何持仓记录"); return; }
+  const lines = keys.map(k => {
+    const p = JSON.parse(localStorage.getItem(k));
+    return (k.slice(4) + "  " + (p.dir === "L" ? "多" : "空") +
+            "  入场" + p.entry + "  数量" + p.qty +
+            "  保证金" + (p.margin ? p.margin.toFixed(2) : "—"));
+  });
+  const msg = "共 " + keys.length + " 条记录：\n\n" + lines.join("\n") +
+              "\n\n要删除哪一条？输入币名（如 AIN），取消则不删。";
+  const ans = prompt(msg, "");
+  if (!ans) return;
+  const sym = ans.trim().toUpperCase();
+  if (!loadPos(sym)) { alert("没有 " + sym + " 的记录"); return; }
+  closePos(sym);
 }
 
 /* ============ 手动记录持仓 ============ */
