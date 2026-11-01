@@ -233,6 +233,14 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   </div>
 </div>
 
+<!-- 已结算记录 -->
+<div class="modal" id="smodal">
+  <div class="mbox">
+    <div class="mhead">已结算记录</div>
+    <div id="s-body"></div>
+  </div>
+</div>
+
 <!-- 账户余额弹窗 -->
 <div class="modal" id="cmodal">
   <div class="mbox">
@@ -282,7 +290,8 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <div class="ft">规则固定：突破 20 日高/低 → 开仓<br>止损 1.5 ATR · 杠杆按整数算 · 最多 2 仓</div>
 <div class="clear">
-  <a href="javascript:showAllPos()">查看全部记录</a>
+  <a href="javascript:openSettle()">已结算记录</a>
+  <a href="javascript:showAllPos()" style="margin-left:18px">查看全部记录</a>
   <a href="javascript:resetAll()" style="margin-left:18px">清空全部记录</a>
 </div>
 
@@ -451,6 +460,8 @@ function closePos(sym) {
     if ((p.marginMode || "isolated") !== "cross" && mg2 > 0 && realized < -mg2) realized = -mg2;
     BASE_CAP = Math.max(BASE_CAP + realized, 0.01);
     try { localStorage.setItem("capital", String(BASE_CAP)); } catch (e) {}
+    addSettlement({ sym: sym, dir: p.dir === "L" ? "多" : "空",
+                    pnl: realized, date: new Date().toISOString().slice(0, 10) });
     alert("已结算：" + (realized >= 0 ? "+" : "") + realized.toFixed(2) + "U\n基准余额 → " + BASE_CAP.toFixed(2) + "U");
   }
   del(sym);
@@ -513,6 +524,7 @@ async function scanAll() {
   }
   // 仓位按「基准 + 浮动」算（复利）
   CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  _scannedOnce = true;
 
   // 取信号，按优先级
   const sigs = rows.filter(r => r.sig)
@@ -1021,6 +1033,68 @@ function npSave() {
   scanAll();
 }
 
+/* ============ 已结算记录 ============ */
+const SETTLE_KEY = "settlements";
+
+function loadSettlements() {
+  try { return JSON.parse(localStorage.getItem(SETTLE_KEY) || "[]"); } catch (e) { return []; }
+}
+function saveSettlements(list) {
+  try { localStorage.setItem(SETTLE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function addSettlement(rec) {
+  const list = loadSettlements();
+  list.push(rec);
+  saveSettlements(list);
+}
+
+function openSettle() {
+  const list = loadSettlements();
+  let h = "";
+  if (!list.length) {
+    h = '<div class="mmsg" style="text-align:center;padding:20px 0">还没有已结算记录</div>';
+  } else {
+    let total = 0;
+    h = '<div style="max-height:320px;overflow-y:auto;margin-bottom:12px">';
+    list.forEach((r, i) => {
+      total += r.pnl;
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #202633">' +
+        '<span style="font-weight:700;color:#fff;min-width:70px">' + r.sym + '</span>' +
+        '<span style="font-size:11.5px;color:#5f6779">' + r.dir + '</span>' +
+        '<span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:' +
+          (r.pnl >= 0 ? "#19c07a" : "#ff6b7d") + '">' + (r.pnl >= 0 ? "+" : "") + r.pnl.toFixed(2) + 'U</span>' +
+        '<span style="font-size:11px;color:#4a5162">' + (r.date || "") + '</span>' +
+        '<button onclick="delSettle(' + i + ')" style="padding:4px 10px;border-radius:8px;border:1px solid #3a2830;' +
+          'background:#1a1216;color:#c98b96;font-size:12px;font-family:inherit">删</button>' +
+        '</div>';
+    });
+    h += '</div>';
+    h += '<div style="font-size:12.5px;color:#7d8699;margin-bottom:12px">累计已结算：' +
+      '<b style="color:' + (total >= 0 ? "#19c07a" : "#ff6b7d") + '">' +
+      (total >= 0 ? "+" : "") + total.toFixed(2) + 'U</b></div>';
+  }
+  h += '<div class="macts"><button onclick="closeSettle()">关闭</button></div>';
+  $("s-body").innerHTML = h;
+  $("smodal").classList.add("on");
+}
+
+function delSettle(i) {
+  const list = loadSettlements();
+  if (i < 0 || i >= list.length) return;
+  const r = list[i];
+  if (!confirm("删除这条结算记录？\n\n" + r.sym + "  " + (r.pnl >= 0 ? "+" : "") + r.pnl.toFixed(2) + "U" +
+               "\n\n删除后基准余额会反向调整 " + (-r.pnl).toFixed(2) + "U")) return;
+  BASE_CAP -= r.pnl;
+  try { localStorage.setItem("capital", String(BASE_CAP)); } catch (e) {}
+  list.splice(i, 1);
+  saveSettlements(list);
+  CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  refreshCapBar();
+  openSettle();      // 刷新列表
+}
+
+function closeSettle() { $("smodal").classList.remove("on"); }
+
 /* ============ 账户余额 ============ */
 function loadCap() {
   try {
@@ -1031,9 +1105,20 @@ function loadCap() {
   } catch (e) {}
 }
 
+let _scannedOnce = false;
+
 function refreshCapBar() {
   const el = $("cap-val"), h = $("cap-hint");
   if (!el) return;
+  // 还没扫描过就不显示权益，避免闪出错误的中间值
+  const hasPos = (function () {
+    try { return Object.keys(localStorage).some(k => k.indexOf("pos_") === 0); } catch (e) { return false; }
+  })();
+  if (!_scannedOnce && hasPos) {
+    el.textContent = "…";
+    h.innerHTML = "正在获取持仓价格，稍候";
+    return;
+  }
   const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
   el.textContent = eq.toFixed(2) + " U";
   const raw = eq * CFG.RISK;
