@@ -236,21 +236,61 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 <!-- 首次使用引导 -->
 <div class="modal" id="wmodal">
   <div class="mbox">
-    <div class="mhead">👋 欢迎使用</div>
-    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
-      这个工具帮你盯两件事：<br>
-      · <b style="color:#fff">主流币</b>突破 20 日高低点 → 开仓信号<br>
-      · <b style="color:#fff">山寨币</b>单日暴涨 30% → 做空信号（持 20 天）<br><br>
-      数据每天自动更新，账户和持仓只存在<b style="color:#fff">你这台手机</b>上。
+    <!-- 第 1 步：介绍 + 余额 -->
+    <div id="w-step1">
+      <div class="mhead">👋 欢迎使用</div>
+      <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
+        这个工具帮你盯两件事：<br>
+        · <b style="color:#fff">主流币</b>突破 20 日高低点 → 开仓信号<br>
+        · <b style="color:#fff">山寨币</b>单日暴涨 30% → 做空信号（持 20 天）<br><br>
+        数据每天自动更新，账户和持仓只存在<b style="color:#fff">你这台手机</b>上。
+      </div>
+      <div class="mrow">
+        <label>先填一下你的账户余额（USDT）</label>
+        <input id="w-cap" type="number" step="any" inputmode="decimal" placeholder="100">
+      </div>
+      <div class="mmsg" id="w-msg">之后可以随时点顶部余额修改</div>
+      <div class="macts">
+        <button onclick="wSkip()">稍后设置</button>
+        <button class="p" onclick="wNext()">下一步</button>
+      </div>
     </div>
-    <div class="mrow">
-      <label>先填一下你的账户余额（USDT）</label>
-      <input id="w-cap" type="number" step="any" inputmode="decimal" placeholder="100">
-    </div>
-    <div class="mmsg" id="w-msg">之后可以随时点顶部余额修改</div>
-    <div class="macts">
-      <button onclick="wSkip()">稍后设置</button>
-      <button class="p" onclick="wSave()">开始使用</button>
+
+    <!-- 第 2 步：逐仓警告（强制看） -->
+    <div id="w-step2" style="display:none">
+      <div class="mhead" style="color:#ff8fa0">⚠️ 开始前必须知道</div>
+      <div style="font-size:13.5px;color:#d2d8e6;line-height:1.7;margin-bottom:14px">
+        山寨币做空只能用 <b style="color:#fff">1x 杠杆</b> + <b style="color:#fff">逐仓</b>。这是策略成立的前提。
+      </div>
+
+      <div style="background:#0d1a14;border:1px solid #1e3a28;border-radius:11px;padding:11px 13px;margin-bottom:9px">
+        <div style="font-size:14px;font-weight:700;color:#19c07a;margin-bottom:4px">✅ 逐仓（必须选这个）</div>
+        <div style="font-size:12.5px;color:#8b93a6;line-height:1.7">
+          价格翻倍 → 只亏光这一笔保证金<br>
+          账户里其他钱完全不受影响
+        </div>
+      </div>
+
+      <div style="background:#1a0f11;border:1px solid #3a2028;border-radius:11px;padding:11px 13px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;color:#ff6b7d;margin-bottom:4px">❌ 全仓（绝对不能选）</div>
+        <div style="font-size:12.5px;color:#8b93a6;line-height:1.7">
+          价格翻倍 → 从<b style="color:#ff8fa0">整个账户</b>里扣<br>
+          一次就能亏掉全部本金
+        </div>
+      </div>
+
+      <div style="background:#12151d;border:1px solid #202633;border-radius:11px;padding:11px 13px;margin-bottom:14px">
+        <div style="font-size:12.5px;color:#8b93a6;line-height:1.8">
+          <b style="color:#fff">怎么设置：</b><br>
+          币安 → 持仓 → 点「杠杆」→ 保证金模式 → 选「<b style="color:#19c07a">逐仓</b>」<br><br>
+          <b style="color:#fff">注意：不设止损。</b>策略靠「价格翻倍自动爆仓」把亏损封死在这笔保证金里。
+        </div>
+      </div>
+
+      <div class="macts">
+        <button onclick="wBack()">返回</button>
+        <button class="p" onclick="wFinish()">我明白了</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1063,17 +1103,36 @@ function needOnboard() {
 
 function openWelcome() {
   $("w-cap").value = "";
+  $("w-step1").style.display = "";
+  $("w-step2").style.display = "none";
   $("wmodal").classList.add("on");
 }
 
-function wSkip() { $("wmodal").classList.remove("on"); }
+function wSkip() {
+  // 跳过也要看逐仓警告
+  wNext(true);
+}
 
-function wSave() {
-  const v = parseFloat($("w-cap").value);
-  if (!isFinite(v) || v <= 0) { alert("填入你的账户余额"); return; }
-  BASE_CAP = v;
-  CFG.CAPITAL = v;
-  try { localStorage.setItem("capital", String(v)); } catch (e) {}
+function wNext(skipBalance) {
+  if (!skipBalance) {
+    const v = parseFloat($("w-cap").value);
+    if (!isFinite(v) || v <= 0) { alert("填入你的账户余额，或点「稍后设置」"); return; }
+    BASE_CAP = v;
+    CFG.CAPITAL = v;
+    try { localStorage.setItem("capital", String(v)); } catch (e) {}
+    refreshCapBar();
+  }
+  $("w-step1").style.display = "none";
+  $("w-step2").style.display = "";
+}
+
+function wBack() {
+  $("w-step1").style.display = "";
+  $("w-step2").style.display = "none";
+}
+
+function wFinish() {
+  try { localStorage.setItem("welcomeDone", "1"); } catch (e) {}
   $("wmodal").classList.remove("on");
   refreshCapBar();
   scanAll();
@@ -1547,7 +1606,7 @@ function setRisk(v) {
 
 loadCap();
 refreshCapBar();
-if (needOnboard()) setTimeout(openWelcome, 400);
+if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 400);
 setTimeout(refreshCapBar, 500);
 
 /* 恢复上次选择的风险档 */
