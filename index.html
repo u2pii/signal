@@ -237,12 +237,13 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 <div class="modal" id="gmodal" style="display:flex">
   <div class="mbox">
     <div class="mhead">🔒 需要口令</div>
-    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
-      这个工具不公开。请向分享给你的人索要今天的口令。
+    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:14px">
+      这个工具不公开。请向分享给你的人索要今天的口令。<br>
+      <span style="font-size:11.5px;color:#4a5162">（站主可直接输入主密码，一次管一年）</span>
     </div>
     <div class="mrow">
-      <label>今日口令</label>
-      <input id="g-tok" type="text" autocapitalize="characters" placeholder="10 位字母数字"
+      <label>今日口令 或 主密码</label>
+      <input id="g-tok" type="text" autocapitalize="characters" placeholder="口令或主密码"
              style="text-transform:uppercase;letter-spacing:3px;text-align:center;font-family:ui-monospace,monospace;font-size:19px">
     </div>
     <div class="mmsg" id="g-msg"></div>
@@ -1134,41 +1135,72 @@ function hasAccess() {
     const v = localStorage.getItem(ACCESS_KEY);
     if (!v) return false;
     const o = JSON.parse(v);
-    // 当天或昨天通过过就算
+    if (o.exp) return bjToday(0) <= o.exp;      // 长期授权
     return o.date === bjToday(0) || o.date === bjToday(-1);
   } catch (e) { return false; }
 }
 
-function grantAccess(tok) {
+function grantAccess(tok, days) {
   try {
-    localStorage.setItem(ACCESS_KEY, JSON.stringify({ date: bjToday(0), tok: tok }));
+    const exp = bjToday(days || 1);
+    localStorage.setItem(ACCESS_KEY, JSON.stringify({ date: bjToday(0), exp: exp, tok: tok }));
   } catch (e) {}
+}
+
+/* 用主密码推导某天的口令（和 key.html / gen_token.py 完全一致） */
+async function deriveToken(pw, dateStr) {
+  let x = await sha256hex(pw + ":" + dateStr);
+  for (let i = 0; i < 20000; i++) x = await sha256hex(x + pw);
+  const AL = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let t = "";
+  for (let i = 0; i < 10; i++) t += AL[parseInt(x.substr(i * 2, 2), 16) % 32];
+  return t;
+}
+
+async function verifyAgainst(tok, d) {
+  let h = await sha256hex(tok + "|" + d.date);
+  if (h === d.hash) return true;
+  if (d.prev) {
+    const h2 = await sha256hex(tok + "|" + d.prev.date);
+    if (h2 === d.prev.hash) return true;
+  }
+  return false;
 }
 
 async function checkToken() {
   const el = $("g-tok"), msg = $("g-msg");
-  const tok = (el.value || "").trim().toUpperCase();
+  const inp = (el.value || "").trim().toUpperCase();
   msg.classList.remove("bad");
-  if (tok.length < 6) { msg.textContent = "口令长度不对"; msg.classList.add("bad"); return; }
+  if (inp.length < 6) { msg.textContent = "输入太短"; msg.classList.add("bad"); return; }
   msg.textContent = "验证中…";
   try {
     const r = await fetch("token.json?t=" + Date.now());
     if (!r.ok) throw new Error("读不到 token.json");
     const d = await r.json();
-    const h = await sha256hex(tok + "|" + d.date);
-    let ok = (h === d.hash);
-    if (!ok && d.prev) {
-      const h2 = await sha256hex(tok + "|" + d.prev.date);
-      ok = (h2 === d.prev.hash);
-    }
-    if (ok) {
-      grantAccess(tok);
+
+    // ① 先当成「今日口令」试
+    if (await verifyAgainst(inp, d)) {
+      grantAccess(inp, 1);
       $("gmodal").style.display = "none";
       startApp();
-    } else {
-      msg.textContent = "口令不对，或已过期（每天更换）";
-      msg.classList.add("bad");
+      return;
     }
+
+    // ② 再当成「主密码」试（站主用，推导口令后比对）
+    msg.textContent = "按主密码验证中…（约 2 秒）";
+    for (const off of [0, -1]) {
+      const dateStr = bjToday(off);
+      const t = await deriveToken(el.value, dateStr);
+      if (await verifyAgainst(t, d)) {
+        grantAccess(t, 365);          // 站主：一年免输
+        $("gmodal").style.display = "none";
+        startApp();
+        return;
+      }
+    }
+
+    msg.textContent = "口令或主密码不对";
+    msg.classList.add("bad");
   } catch (e) {
     msg.textContent = "验证失败：" + e.message;
     msg.classList.add("bad");
