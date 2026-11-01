@@ -1026,8 +1026,9 @@ function render(rows, sigs) {
   h += buildHoldCards(holds, '我的持仓');
 
   h += '<h3>主流币 · 按接近突破排序</h3>';
+  // 主流页只列主流币（山寨币只在山寨页显示）
   // 计算每个币到最近突破位的距离，排序（已触发的排最前）
-  const ranked = rows.map(r => {
+  const ranked = rows.filter(r => CFG.COINS.indexOf(r.sym) >= 0).map(r => {
     if (r.err) return { r, near: 999 };
     if (r.sig) return { r, near: -1 };
     const up = (r.hh / r.cur - 1) * 100;
