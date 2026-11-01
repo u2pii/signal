@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0c10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="信号">
+<meta name="format-detection" content="telephone=no">
+<title>今日信号</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overflow-x:hidden}
+body{margin:0 auto;background:#0a0c10;color:#d2d8e6;font:16px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+padding:18px 16px 50px;max-width:430px;min-height:100vh;-webkit-text-size-adjust:100%}
+h1{font-size:20px;margin:0 0 4px;color:#fff;font-weight:700}
+.s{font-size:12.5px;color:#5f6779;margin-bottom:20px}
+.btn{width:100%;padding:22px;border:0;border-radius:18px;font-size:19px;font-weight:700;color:#fff;
+background:linear-gradient(135deg,#2f6bff,#1f4fd0);box-shadow:0 8px 28px rgba(47,107,255,.4);
+margin-bottom:8px;font-family:inherit}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.55;box-shadow:none}
+.hint{font-size:11.5px;color:#4a5162;text-align:center;margin-bottom:22px}
+.card{background:#12151d;border:1px solid #202633;border-radius:16px;padding:16px;margin-bottom:14px;overflow:hidden}
+.card.go{border-left:3px solid #19c07a;background:#0d1a14}
+.card.done{opacity:.5;border-left-color:#3a4356}
+.top{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+.sym{font-size:20px;font-weight:700;color:#fff}
+.pill{font-size:12px;padding:3px 11px;border-radius:20px;font-weight:600;white-space:nowrap}
+.pill.L{background:#3a1420;color:#ff8fa0}
+.pill.S{background:#0f2e22;color:#4fe0a8}
+.pill.x{margin-left:auto;background:#19c07a;color:#04140d;font-size:11.5px}
+.pill.ok{background:#2a3448;color:#8b93a6;font-size:11.5px;margin-left:auto}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;font-size:14px}
+.kv div{display:flex;justify-content:space-between;gap:6px;min-width:0}
+.kv span{color:#5f6779;font-size:12.5px;white-space:nowrap}
+.kv b{color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stop{color:#ffc94d!important}
+.lev{color:#8ab4ff!important}
+.good{color:#19c07a!important}
+.bad{color:#ff6b7d!important}
+.warn{background:#2a1f0a;border:1px solid #5c4518;color:#ffc94d;padding:9px 12px;border-radius:10px;
+font-size:12.5px;line-height:1.5;margin-top:10px}
+.acts{display:flex;gap:10px;margin-top:14px}
+.acts a{flex:1;text-align:center;padding:14px 8px;border-radius:13px;font-size:14.5px;font-weight:600;
+text-decoration:none;background:#1c2333;color:#8ab4ff;border:1px solid #2a3448;cursor:pointer}
+.acts a.p{background:#19c07a;color:#04140d;border:0}
+.acts a:active{opacity:.8}
+.w{display:grid;grid-template-columns:54px 1fr 1fr;gap:8px;align-items:center;
+padding:11px 4px;border-bottom:1px solid #181d28;font-size:13px}
+.w .n{font-weight:700;color:#c8cfe0;font-size:14px}
+.w .u{color:#7d8699;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w .u b{color:#c8cfe0;font-variant-numeric:tabular-nums}
+.w .u i{display:block;font-style:normal;font-size:11px;color:#4a5162}
+h3{font-size:12.5px;color:#5f6779;margin:22px 0 8px;font-weight:500;letter-spacing:.5px}
+.empty{text-align:center;padding:34px 0;color:#5f6779}
+.empty b{display:block;font-size:17px;color:#98a0b3;margin-bottom:6px}
+.err{background:#1a0f11;border:1px solid #5c2028;color:#ff9aa6;padding:12px 14px;border-radius:12px;font-size:13.5px;margin-bottom:14px}
+.clear{text-align:center;margin-top:18px}
+.clear a{font-size:12px;color:#4a5162;text-decoration:none;border-bottom:1px dotted #2a3448}
+.risk{display:flex;gap:7px;margin-bottom:18px}
+.risk button{flex:1;padding:9px 4px;border-radius:11px;border:1px solid #202633;background:#12151d;
+color:#7d8699;font-size:12.5px;font-weight:600;font-family:inherit}
+.risk button.on{border-color:#2f6bff;background:#16224a;color:#8ab4ff}
+.risk button small{display:block;font-size:9.5px;font-weight:400;opacity:.65;margin-top:2px}
+/* 弹窗 */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99;
+align-items:center;justify-content:center;padding:20px}
+.modal.on{display:flex}
+.mbox{background:#12151d;border:1px solid #2a3448;border-radius:18px;padding:20px;width:100%;max-width:340px}
+.mhead{font-size:17px;font-weight:700;color:#fff;margin-bottom:16px}
+.mrow{margin-bottom:13px}
+.mrow label{display:block;font-size:12px;color:#5f6779;margin-bottom:5px}
+.mrow input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid #2a3448;background:#0a0c10;
+color:#fff;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;font-family:inherit}
+.mrow input:focus{outline:none;border-color:#2f6bff}
+.mmsg{font-size:12px;color:#7d8699;min-height:18px;margin-bottom:12px;line-height:1.5}
+.mmsg.bad{color:#ff8fa0}
+.macts{display:flex;gap:10px}
+.macts button{flex:1;padding:14px;border-radius:12px;border:1px solid #2a3448;background:#1c2333;
+color:#8b93a6;font-size:15px;font-weight:600;font-family:inherit}
+.macts button.p{background:#19c07a;color:#04140d;border:0}
+.editlink{font-size:11.5px;color:#4a5162;text-decoration:none;border-bottom:1px dotted #2a3448;margin-left:auto}
+.altcard{background:#12151d;border:1px solid #202633;border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.altcard.bad{border-left:3px solid #e8484f;background:#161013}
+.atop{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.anm{font-size:15.5px;font-weight:700;color:#fff}
+.ab{font-size:11px;padding:2px 9px;border-radius:20px;background:#3a1418;color:#ff8fa0;margin-left:auto;font-weight:600}
+.aw{font-size:11px;padding:2px 9px;border-radius:20px;background:#16224a;color:#8ab4ff;margin-left:auto;font-weight:600}
+.aline{font-size:12.5px;color:#7d8699;line-height:1.75}
+.aline b{color:#c9cfdd;font-variant-numeric:tabular-nums}
+.aline b.bad{color:#ff6b7d}
+.aline b.good{color:#19c07a}
+.shortbox{background:#0f1410;border:1px solid #1e3a28;border-radius:14px;padding:14px;margin-bottom:16px}
+.shorthead{font-size:15.5px;font-weight:700;color:#19c07a;margin-bottom:8px}
+.shortrule{font-size:12px;color:#7d8699;line-height:1.7;background:#0a120d;border-radius:9px;
+padding:9px 11px;margin-bottom:12px}
+.shortrule b{color:#d2d8e6}
+.scard{background:#12151d;border:1px solid #2a3348;border-left:3px solid #e8484f;
+border-radius:11px;padding:12px 13px;margin-bottom:9px}
+.sbadge{font-size:12px;padding:2px 10px;border-radius:20px;background:#3a1418;color:#ff8fa0;
+margin-left:auto;font-weight:700}
+.bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
+.bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
+.shortwarn{font-size:11.5px;color:#8b6b6b;line-height:1.7;margin-top:8px;padding-left:2px}
+.ft{font-size:11px;color:#3d4352;text-align:center;margin-top:26px;line-height:1.9}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<h1>今日信号</h1>
+<div class="s" id="sub">Donchian 20 · 日线</div>
+
+<button class="btn" id="go" onclick="scanAll()">🔍 检查信号</button>
+<div class="hint" id="hint">每天点一次，30 秒看结果</div>
+
+<div class="risk" id="riskbar"></div>
+
+<div id="out"></div>
+<div id="alts"></div>
+
+<!-- 记录/修改持仓的弹窗 -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mhead" id="m-title">记录开仓</div>
+    <div class="mrow">
+      <label>实际入场价</label>
+      <input id="m-entry" type="number" step="any" inputmode="decimal" oninput="onEntryEdit()">
+    </div>
+    <div class="mrow">
+      <label>止损价</label>
+      <input id="m-stop" type="number" step="any" inputmode="decimal" oninput="onStopEdit()">
+    </div>
+    <div class="mmsg" id="m-msg"></div>
+    <div class="macts">
+      <button onclick="modalClose()">取消</button>
+      <button class="p" onclick="modalSave()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 加仓弹窗 -->
+<div class="modal" id="amodal">
+  <div class="mbox">
+    <div class="mhead" id="a-title">加仓</div>
+    <div class="mrow">
+      <label>加仓价格</label>
+      <input id="a-price" type="number" step="any" inputmode="decimal" oninput="onAddEdit()">
+    </div>
+    <div class="mrow">
+      <label>加仓金额（USDT 保证金）</label>
+      <input id="a-usd" type="number" step="any" inputmode="decimal" oninput="onAddEdit()">
+    </div>
+    <div class="mmsg" id="a-msg"></div>
+    <div class="macts">
+      <button onclick="aClose()">取消</button>
+      <button class="p" onclick="aSave()">确认加仓</button>
+    </div>
+  </div>
+</div>
+
+<div class="ft">规则固定：突破 20 日高/低 → 开仓<br>止损 1.5 ATR · 杠杆按整数算 · 最多 2 仓</div>
+<div class="clear"><a href="javascript:resetAll()">清空开仓记录</a></div>
+
+<script>
+/* ============ 配置 ============ */
+const CFG = {
+  N: 20,            // 突破周期
+  K_SL: 1.5,        // 初始止损 ATR 倍数
+  M_TRAIL: 3.0,     // 移动止损 ATR 倍数（吊灯）
+  RISK: 0.08,       // 单笔风险（8% 对应「能接受50%回撤」）
+  MAX_POS: 2,       // 最多同时持仓
+  MAX_LEV: 10,      // 杠杆上限
+  CAPITAL: 97.66,   // 本金 USDT
+  COINS: ["SOL","DOGE","BNB","ADA","BTC","ETH"]
+};
+
+/* 风险档位（点一下就切） */
+const RISK_LEVELS = [
+  { key: 0.03, name: "保守", hint: "亏50%概率 3%" },
+  { key: 0.05, name: "标准", hint: "亏50%概率 19%" },
+  { key: 0.08, name: "积极", hint: "亏50%概率 64%" },
+  { key: 0.15, name: "激进", hint: "亏50%概率 99%" },
+];
+
+/* ============ 工具 ============ */
+const $ = (id) => document.getElementById(id);
+const f = (p) => p >= 1000 ? p.toFixed(1) : p >= 10 ? p.toFixed(2) : p >= 1 ? p.toFixed(3) : p.toFixed(5);
+
+function jfetch(url, ms = 15000) {
+  return new Promise((res, rej) => {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    fetch(url, { signal: ctl.signal })
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(d => { clearTimeout(t); res(d); })
+      .catch(e => { clearTimeout(t); rej(e); });
+  });
+}
+
+/* 抓日线：币安优先（和你看到的价格一致），失败再退 Gate / OKX */
+async function daily(sym) {
+  // 1) 币安公开行情（data-api.binance.vision，国内可通）
+  try {
+    const raw = await jfetch("https://data-api.binance.vision/api/v3/klines?symbol=" +
+      sym + "USDT&interval=1d&limit=200");
+    if (Array.isArray(raw) && raw.length >= 45) {
+      const b = raw.map(k => ({ t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4] }));
+      b.sort((a, x) => a.t - x.t);
+      b._src = "币安";
+      return b;
+    }
+  } catch (e) { /* 下一步 */ }
+
+  // 2) Gate 合约
+  try {
+    const raw = await jfetch("https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=" +
+      sym + "_USDT&interval=1d&limit=200");
+    const b = raw.map(r => ({ t: +r.t, o: +r.o, h: +r.h, l: +r.l, c: +r.c }));
+    b.sort((a, x) => a.t - x.t);
+    if (b.length >= 45) { b._src = "Gate合约"; return b; }
+  } catch (e) { /* 下一步 */ }
+
+  // 3) OKX 永续
+  try {
+    const raw = await jfetch("https://www.okx.com/api/v5/market/candles?instId=" + sym + "-USDT-SWAP&bar=1D&limit=200");
+    if (raw.code === "0" && raw.data && raw.data.length >= 45) {
+      const b = raw.data.map(r => ({ t: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4] }));
+      b.sort((a, x) => a.t - x.t);
+      b._src = "OKX";
+      return b;
+    }
+  } catch (e) { /* 下一步 */ }
+
+  // 4) 兜底：Gate 现货
+  const raw = await jfetch("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=" +
+    sym + "_USDT&interval=1d&limit=200");
+  const b = raw.map(r => ({ t: +r[0], o: +r[5], h: +r[3], l: +r[4], c: +r[2] }));
+  b.sort((a, x) => a.t - x.t);
+  b._src = "Gate现货";
+  return b;
+}
+
+function atr14(bars, n = 14) {
+  let a = null; const tr = [];
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i];
+    const v = i === 0 ? b.h - b.l
+      : Math.max(b.h - b.l, Math.abs(b.h - bars[i-1].c), Math.abs(b.l - bars[i-1].c));
+    tr.push(v);
+    if (i === n - 1) a = tr.slice(0, n).reduce((x, y) => x + y, 0) / n;
+    else if (i >= n) a = (a * (n - 1) + v) / n;
+  }
+  return a;
+}
+
+/* ============ 本地记录 ============ */
+const K = (s) => "pos_" + s;
+const load = (s) => { try { const v = localStorage.getItem(K(s)); return v ? JSON.parse(v) : null } catch(e) { return null } };
+const loadPos = load;
+const save = (s, o) => { try { localStorage.setItem(K(s), JSON.stringify(o)) } catch(e) {} };
+const savePos = save;
+const del = (s) => { try { localStorage.removeItem(K(s)) } catch(e) {} };
+
+/* 更新移动止损（吊灯）：持仓期极值 ∓ 3×ATR，只朝有利方向 */
+function updateTrailing(p, r) {
+  // 山寨币做空：按策略不设止损、持有 20 天，只显示盈亏
+  if (p.alt) {
+    const pnl = (r.cur / p.entry - 1) * 100 * (p.dir === "L" ? 1 : -1);
+    return { sl: p.sl, ext: p.ext || p.entry, moved: false, pnlPct: pnl,
+             shouldClose: false, closeReason: null, atr: r.atr };
+  }
+  const atr = r.atr;
+  const close = r.cur;
+  let sl = p.sl, ext = p.ext;
+  if (p.dir === "L") {
+    ext = Math.max(ext || p.entry, close);
+    sl = Math.max(sl, ext - CFG.M_TRAIL * atr);
+  } else {
+    ext = Math.min(ext || p.entry, close);
+    sl = Math.min(sl, ext + CFG.M_TRAIL * atr);
+  }
+  const moved = (p.dir === "L" ? sl > p.sl + 1e-9 : sl < p.sl - 1e-9);
+  const pnlPct = (close / p.entry - 1) * 100 * (p.dir === "L" ? 1 : -1);
+
+  // 是否该平仓
+  const hit = (p.dir === "L" && r.cur <= sl) || (p.dir === "S" && r.cur >= sl);
+  const rev = (p.dir === "L" && close < r.ll) || (p.dir === "S" && close > r.hh);
+
+  return {
+    sl, ext, moved, pnlPct,
+    shouldClose: hit || rev,
+    closeReason: hit ? "触及移动止损" : (rev ? "反向信号" : null),
+    atr,
+  };
+}
+
+/* 更新持仓的止损（用户点「已更新」后写入） */
+function applySl(sym) {
+  const p = loadPos(sym);
+  if (!p || !p._newSl) return;
+  p.sl = p._newSl;
+  p.ext = p._newExt;
+  delete p._newSl; delete p._newExt;
+  savePos(sym, p);
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+function closePos(sym) {
+  const p = loadPos(sym);
+  if (!p) return;
+  if (!confirm("确认已在币安平掉 " + sym + " 的仓？")) return;
+  del(sym);
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+function resetAll() {
+  if (!confirm("清空所有开仓记录？（只清记录，不影响你的实际持仓）")) return;
+  Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0).forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+/* ============ 主流程 ============ */
+async function scanAll() {
+  const btn = $("go");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>抓数据中…';
+  $("out").innerHTML = "";
+  $("hint").textContent = "正在拉取 6 个币的日线数据…";
+
+  // 已记录持仓的币也要扫描（可能在列表之外，比如山寨币）
+  let heldSyms = [];
+  try {
+    heldSyms = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0).map(k => k.slice(4));
+  } catch (e) {}
+  const scanList = CFG.COINS.concat(heldSyms.filter(s => CFG.COINS.indexOf(s) < 0));
+
+  const rows = await Promise.all(scanList.map(async (sym) => {
+    try {
+      const bars = await daily(sym);
+      const closed = bars.slice(0, -1);
+      const cur = bars[bars.length - 1].c;
+      const n = CFG.N;
+      const seg = closed.slice(-n - 1, -1);   // 关键：排除当前根
+      const hh = Math.max.apply(null, seg.map(b => b.h));
+      const ll = Math.min.apply(null, seg.map(b => b.l));
+      const atr = atr14(closed);
+      return { sym, cur, hh, ll, atr, src: bars._src,
+               sig: cur > hh ? "L" : (cur < ll ? "S" : null) };
+    } catch (e) {
+      return { sym, err: String(e.message || e).slice(0, 40) };
+    }
+  }));
+
+  // 取信号，按优先级
+  const sigs = rows.filter(r => r.sig)
+    .sort((a, b) => CFG.COINS.indexOf(a.sym) - CFG.COINS.indexOf(b.sym))
+    .slice(0, CFG.MAX_POS);
+
+  sigs.forEach(s => sizePosition(s));
+
+  // 保证金总量检查：同时持仓不能超过本金
+  let usedMargin = 0;
+  const keep = [];
+  const dropped = [];
+  for (const s of sigs) {
+    const m = s.notional / s.lev;
+    if (usedMargin + m <= CFG.CAPITAL * 0.95 && !s.tooSmall) {
+      usedMargin += m;
+      s.margin = m;
+      keep.push(s);
+    } else {
+      dropped.push(s);
+    }
+  }
+  sigs.length = 0;
+  sigs.push(...keep);
+  rows._dropped = dropped;
+
+  // 处理已有持仓：更新移动止损（所有持仓都要显示，不管有没有信号）
+  const holdings = [];
+  for (const r of rows) {
+    if (r.err) continue;
+    const p = loadPos(r.sym);
+    if (!p) continue;
+    r.pos = p;
+    r.posInfo = updateTrailing(p, r);
+    holdings.push(r);
+  }
+  rows._holdings = holdings;
+
+  // 已持仓的币不再显示「开仓信号」，避免重复开仓
+  const finalSigs = sigs.filter(s => !holdings.some(h => h.sym === s.sym));
+
+  render(rows, finalSigs);
+  btn.disabled = false;
+  btn.textContent = "🔍 重新检查";
+  $("hint").textContent = "点上面按钮可以重新检查";
+  const srcSet = [...new Set(rows.filter(r => !r.err).map(r => r.src).filter(Boolean))];
+  $("sub").textContent = "Donchian 20 · 日线 · " +
+    new Date().toLocaleString("zh-CN", { hour12: false }) +
+    (srcSet.length ? "  ·  数据：" + srcSet.join("/") : "");
+}
+
+/* ============ 仓位计算（币安整数杠杆 + 最小下单量）============ */
+const STEP = { BTC: 0.001, ETH: 0.001, SOL: 0.01, BNB: 0.01, DOGE: 1, ADA: 1 };
+const MIN_NOTIONAL = 5;      // 币安 U 本位最小下单金额
+
+function sizePosition(s) {
+  s.stop = s.sig === "L" ? s.cur - CFG.K_SL * s.atr : s.cur + CFG.K_SL * s.atr;
+  const dist = Math.abs(s.cur - s.stop) / s.cur;   // 止损距离（比例）
+  s.dist = dist * 100;
+
+  const cap = CFG.CAPITAL;
+  const targetRisk = cap * CFG.RISK;               // 目标风险金额
+
+  // 目标名义 = 风险金额 ÷ 止损距离（这才是真正的仓位）
+  let notional = targetRisk / dist;
+  const maxNotional = cap * CFG.MAX_LEV;
+  if (notional > maxNotional) notional = maxNotional;   // 不超过杠杆上限
+
+  // 整数杠杆：只需覆盖这个名义（杠杆是上限，不用满）
+  let lev = Math.ceil(notional / cap);
+  if (!isFinite(lev) || lev < 1) lev = 1;
+  if (lev > CFG.MAX_LEV) lev = CFG.MAX_LEV;
+
+  // 按币安最小变动单位向下取整
+  const step = STEP[s.sym] || 0.001;
+  const dec = String(step).split(".")[1] ? String(step).split(".")[1].length : 0;
+  let qty = Math.floor((notional / s.cur) / step) * step;
+  qty = +qty.toFixed(dec);
+
+  notional = qty * s.cur;
+  const actualRisk = notional * dist;
+
+  s.lev = lev;
+  s.qty = qty;
+  s.notional = notional;
+  s.risk = actualRisk;
+  s.riskPct = (actualRisk / cap) * 100;            // 实际风险占本金
+  s.tooSmall = notional < MIN_NOTIONAL;            // 低于最小下单额
+  s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;   // 明显超过目标（取整导致）
+}
+
+function render(rows, sigs) {
+  let h = "";
+
+  const errs = rows.filter(r => r.err);
+  if (errs.length) {
+    h += '<div class="err">取数失败：' + errs.map(r => r.sym).join("、") +
+         '<br><span style="font-size:12px;color:#8b6b6b">检查手机网络，或换个时间再试</span></div>';
+  }
+  if (rows._dropped && rows._dropped.length) {
+    h += '<div class="warn">保证金不够，跳过：' +
+         rows._dropped.map(s => s.sym).join("、") +
+         '<br><span style="opacity:.75">同时开仓占用保证金不能超过本金</span></div>';
+  }
+
+  if (!sigs.length) {
+    h += '<div class="empty"><b>今天没有信号</b>关掉就行，明天再看</div>';
+  } else {
+    sigs.forEach(s => {
+      const rec = load(s.sym);
+      const isDone = rec && rec.dir === s.sig;
+      h += '<div class="card go' + (isDone ? " done" : "") + '">' +
+        '<div class="top"><span class="sym">' + s.sym + '</span>' +
+        '<span class="pill ' + s.sig + '">' + (s.sig === "L" ? "做多 ↗" : "做空 ↘") + '</span>' +
+        (isDone ? '<span class="pill ok">已开仓</span>' : '<span class="pill x">立即开仓</span>') +
+        '</div><div class="kv">' +
+        '<div><span>入场</span><b>' + f(s.cur) + '</b></div>' +
+        '<div><span>止损</span><b class="stop" onclick="copyOne(\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">' + f(s.stop) + ' 📋</b></div>' +
+        '<div><span>杠杆</span><b class="lev">' + s.lev + 'x 📋</b></div>' +
+        '<div><span>数量</span><b onclick="copyOne(\'' + qtyStr(s) + '\',this)">' + qtyStr(s) + ' 📋</b></div>' +
+        '<div><span>名义</span><b>' + s.notional.toFixed(1) + 'U</b></div>' +
+        '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
+        '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
+        '</div>' +
+        (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
+        (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
+        '<div class="acts">' +
+        '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
+        '<a onclick="mark(\'' + s.sym + '\',\'' + s.sig + '\')">' +
+        (isDone ? '已记录 ✓' : '我已开仓') + '</a>' +
+        '</div></div>';
+    });
+  }
+
+  /* ---- 持仓中：移动止损 ---- */
+  const holds = rows._holdings || [];
+  if (holds.length) {
+    h += '<h3>持仓中 · 移动止损</h3>';
+    holds.forEach(r => {
+      const p = r.pos, info = r.posInfo;
+      const dirTxt = p.dir === "L" ? "多" : "空";
+      const cls = p.dir === "L" ? "L" : "S";
+      const pnlCls = info.pnlPct >= 0 ? "up" : "dn";
+      const slTxt = info.moved
+        ? '<b class="good">' + f(info.sl) + ' ⬆️</b>'
+        : '<b>' + f(info.sl) + '</b>';
+      // 盈亏金额（U）
+      const pnlUsd = p.qty ? p.qty * r.cur * (info.pnlPct / 100) : 0;
+      h += '<div class="card hold">' +
+        '<div class="top"><span class="sym">' + r.sym + '</span>' +
+        '<span class="pill ' + cls + '">' + dirTxt + '</span>' +
+        (r.sig
+          ? '<span class="pill ' + r.sig + '" style="font-size:11px">信号持续</span>'
+          : '<span class="pill ok" style="font-size:11px">信号已失效</span>') +
+        '<span class="pnl ' + pnlCls + '">' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%' +
+        ' <span style="font-size:11px;opacity:.75">' + (pnlUsd >= 0 ? "+" : "") + pnlUsd.toFixed(2) + "U</span></span>" +
+        '</div><div class="kv">' +
+        '<div><span>入场</span><b onclick="editPos(\'' + r.sym + '\')">' + f(p.entry) + ' ✏️</b></div>' +
+        '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
+        '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
+        '<div><span>新止损</span>' + slTxt + '</div>' +
+        '<div><span>保证金</span><b>' + (p.margin ? p.margin.toFixed(2) + 'U' : '—') + '</b></div>' +
+        '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
+        '</div>' +
+        (r.sig
+          ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
+            (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
+          : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>') +
+        '<div class="acts"><a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a></div>' +
+        (info.shouldClose
+          ? '<div class="warn" style="background:#1a0f11;border-color:#5c2028;color:#ff9aa6">🚪 ' +
+            info.closeReason + ' → 现在平仓</div>' +
+            '<div class="acts"><a class="p" style="background:#e8484f;color:#fff" onclick="closePos(\'' + r.sym + '\')">我已平仓</a></div>'
+          : (info.moved
+            ? '<div class="acts"><a class="p" onclick="applySl(\'' + r.sym + '\')">✅ 已在币安改好止损</a></div>'
+            : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>')) +
+        '</div>';
+      // 记录待更新的止损
+      p._newSl = info.sl;
+      p._newExt = info.ext;
+    });
+  }
+
+  h += '<h3>全部币种 · 按接近突破排序</h3>';
+  // 计算每个币到最近突破位的距离，排序（已触发的排最前）
+  const ranked = rows.map(r => {
+    if (r.err) return { r, near: 999 };
+    if (r.sig) return { r, near: -1 };
+    const up = (r.hh / r.cur - 1) * 100;
+    const dn = (1 - r.ll / r.cur) * 100;
+    return { r, near: Math.min(up, dn), up, dn };
+  }).sort((a, b) => a.near - b.near);
+
+  const closest = ranked.find(x => x.near >= 0 && x.near < 900);
+
+  ranked.forEach(({ r, up, dn }) => {
+    if (r.err) {
+      h += '<div class="w"><span class="n">' + r.sym + '</span>' +
+           '<span class="u" style="grid-column:2/4;color:#e8484f">失败</span></div>';
+      return;
+    }
+    if (r.sig) {
+      h += '<div class="w"><span class="n">' + r.sym + '</span>' +
+           '<span class="u" style="grid-column:2/4;color:#19c07a">已触发 ' +
+           (r.sig === "L" ? "做多" : "做空") + ' ↗</span></div>';
+      return;
+    }
+    const isNear = closest && closest.r.sym === r.sym;
+    h += '<div class="w"' + (isNear ? ' style="background:#12151d;border-radius:8px"' : '') + '>' +
+      '<span class="n">' + r.sym + (isNear ? ' <span style="font-size:9px;color:#f0be5a">最近</span>' : '') + '</span>' +
+      '<span class="u">↑ <b>' + f(r.hh) + '</b><i>' + up.toFixed(1) + '%</i></span>' +
+      '<span class="u">↓ <b>' + f(r.ll) + '</b><i>' + dn.toFixed(1) + '%</i></span></div>';
+  });
+
+  $("out").innerHTML = h;
+
+  // 山寨币风险/观察名单（异步加载，不阻塞主流程）
+  renderAlts();
+}
+
+/* ============ 山寨币风险 / 观察名单 ============ */
+let ALT = null;
+
+async function loadAlts() {
+  try {
+    const r = await fetch("alt_watch.json?t=" + Date.now());
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+async function renderAlts() {
+  if (!ALT) ALT = await loadAlts();
+  const box = $("alts");
+  if (!box) return;
+  if (!ALT) { box.innerHTML = ""; return; }
+
+  let h = '<h3>山寨币监控 · ' + (ALT.updated || "") + "</h3>";
+
+  /* ---- 可做空信号（最重要的是这个） ---- */
+  const shorts = ALT.short || [];
+  if (shorts.length) {
+    h += '<div class="shortbox">' +
+      '<div class="shorthead">🎯 山寨币做空信号</div>' +
+      '<div class="shortrule">回测 435 个暴涨事件：胜率 69% · 中位 +20.6% · t=4.55<br>' +
+      '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
+      '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
+    shorts.forEach(a => {
+      const posUsd = CFG.CAPITAL * 0.05;
+      const qty = posUsd / a.price;
+      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
+      h += '<div class="scard">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="bnok">币安合约</span>' +
+        '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
+        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
+        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x）</div>' +
+        '<div class="aline">数量 <b>' + qs + '</b>' +
+        '　持有 <b>20 天</b>　不设止损</div>' +
+        '<div class="aline" style="font-size:11.5px;color:#5f6779">' +
+        '前20日 ' + a.prior20 + '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '</div>' +
+        '<div class="acts">' +
+        '<a class="p" style="background:#e8484f;color:#fff" ' +
+        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">📋 复制参数</a>' +
+        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\')">我已开空</a></div>' +
+        '</div>';
+    });
+    h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
+         '<br>⚠️ 只在币安有该合约时才能做；小币深度差，用限价单。</div></div>';
+  }
+
+  if (ALT.risky && ALT.risky.length) {
+    h += '<div class="warn" style="margin-bottom:10px">⚠️ <b>高危名单</b>：涨得猛 + 前期已涨很多 + 量能不足。' +
+         '历史上这类币 5 天内跌超 50% 的概率约 20%，别买、持有的话考虑减仓。</div>';
+    ALT.risky.forEach(a => {
+      h += '<div class="altcard bad">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="ab">风险 ' + a.risk + "</span></div>" +
+        '<div class="aline">最大单日涨 <b class="bad">+' + a.max_day + '%</b>' +
+        '　20日累计 <b class="bad">+' + a.prior20 + '%</b></div>' +
+        '<div class="aline">量能 <b>' + a.vol_ratio + 'x</b>' +
+        '　距5日高点 <b>' + a.drawdown5 + '%</b></div></div>';
+    });
+  }
+
+  if (ALT.watch && ALT.watch.length) {
+    h += '<div class="warn" style="margin:14px 0 10px;background:#0e1520;border-color:#1e2c44;color:#8ab4ff">' +
+         '👀 <b>观察名单</b>：成交量突然放大但价格还没大涨，可能有异动。' +
+         '<br><span style="opacity:.75;font-size:11.5px">注意：这只是观察，回测证明按这个做单没有统计优势</span></div>';
+    ALT.watch.forEach(a => {
+      h += '<div class="altcard">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="aw">观察 ' + a.watch + "</span></div>" +
+        '<div class="aline">当前量能 <b class="good">' + a.now_vol + 'x</b>' +
+        '　距20日高 <b>' + a.to_high + '%</b></div>' +
+        '<div class="aline">20日涨跌 <b>' + a.prior20 + '%</b>' +
+        '　日均振幅 <b>' + a.amp + '%</b></div></div>';
+    });
+  }
+
+  if (ALT.note) {
+    h += '<div style="font-size:11px;color:#3d4352;line-height:1.8;margin-top:12px">' + ALT.note + "</div>";
+  }
+  box.innerHTML = h;
+}
+
+/* ============ 记录 / 修改持仓（可改入场价） ============ */
+let _editing = null;   // {sym, dir, atr, mode:'new'|'edit', stopTouched}
+
+function mark(sym, dir) {
+  const p = loadPos(sym);
+  if (p) { alert(sym + " 已经记录过开仓了，可在持仓卡片里修改"); return; }
+  const s = (window._last && window._last.sigs || []).find(x => x.sym === sym);
+  if (!s) { alert("找不到这个信号，请重新检查"); return; }
+  _editing = { sym, dir, atr: s.atr, mode: "new", stopTouched: false, sig: s };
+  $("m-title").textContent = "记录开仓 " + sym + " " + (dir === "L" ? "做多" : "做空");
+  $("m-entry").value = s.cur;
+  $("m-stop").value = s.stop.toFixed(s.stop >= 1000 ? 1 : s.stop >= 1 ? 3 : 5);
+  updateModalMsg();
+  $("modal").classList.add("on");
+}
+
+function onEntryEdit() {
+  if (!_editing || _editing.stopTouched) return;
+  const e = parseFloat($("m-entry").value);
+  if (!isFinite(e) || !_editing.atr) return;
+  const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
+  $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
+  updateModalMsg();
+}
+
+/* ============ 加仓（分批建仓） ============ */
+let _adding = null;
+
+function openAdd(sym) {
+  const p = loadPos(sym);
+  if (!p) { alert("还没有这个币的持仓记录"); return; }
+  const r = (window._last && window._last.rows || []).find(x => x.sym === sym);
+  _adding = { sym, dir: p.dir };
+  $("a-title").textContent = "加仓 " + sym + " " + (p.dir === "L" ? "做多" : "做空");
+  $("a-price").value = r ? r.cur : p.entry;
+  $("a-usd").value = "45";
+  onAddEdit();
+  $("amodal").classList.add("on");
+}
+
+function onAddEdit() {
+  if (!_adding) return;
+  const pr = parseFloat($("a-price").value);
+  const usd = parseFloat($("a-usd").value);
+  const msg = $("a-msg");
+  msg.classList.remove("bad");
+  if (!isFinite(pr) || !isFinite(usd) || pr <= 0 || usd <= 0) {
+    msg.textContent = "填入价格和金额";
+    return;
+  }
+  const p = loadPos(_adding.sym);
+  const addQty = usd / pr;
+  const oldQty = p.qty || 0;
+  const newQty = oldQty + addQty;
+  const oldMargin = p.margin || (oldQty * p.entry / (p.lev || 1));
+  const newMargin = oldMargin + usd;
+  const newEntry = (oldQty * p.entry + addQty * pr) / newQty;
+  const newLev = (newQty * newEntry) / newMargin;
+  msg.innerHTML = "加仓数量 <b style='color:#8ab4ff'>" + addQty.toFixed(6) + "</b><br>" +
+    "均价 <b>" + fmtP(oldEntry(p)) + " → " + fmtP(newEntry) + "</b>　" +
+    "总量 <b>" + newQty.toFixed(6) + "</b><br>" +
+    "保证金 <b>" + oldMargin.toFixed(2) + " → " + newMargin.toFixed(2) + " U</b>　" +
+    "杠杆 <b>" + newLev.toFixed(2) + "x</b>";
+}
+
+function oldEntry(p) { return p.entry; }
+
+function fmtP(v) {
+  if (v >= 1000) return v.toFixed(1);
+  if (v >= 10) return v.toFixed(2);
+  if (v >= 1) return v.toFixed(3);
+  return v.toFixed(5);
+}
+
+function aClose() { $("amodal").classList.remove("on"); _adding = null; }
+
+function aSave() {
+  if (!_adding) return;
+  const pr = parseFloat($("a-price").value);
+  const usd = parseFloat($("a-usd").value);
+  if (!isFinite(pr) || !isFinite(usd) || pr <= 0 || usd <= 0) { alert("填写有误"); return; }
+  const p = loadPos(_adding.sym);
+  if (!p) return;
+  const addQty = usd / pr;
+  const oldQty = p.qty || 0;
+  const newQty = oldQty + addQty;
+  const oldMargin = p.margin || (oldQty * p.entry / (p.lev || 1));
+  const newMargin = oldMargin + usd;
+  const newEntry = (oldQty * p.entry + addQty * pr) / newQty;
+  p.legs = p.legs || [{ entry: p.entry, qty: oldQty, margin: oldMargin, date: p.date }];
+  p.legs.push({ entry: pr, qty: addQty, margin: usd, date: new Date().toISOString().slice(0, 10) });
+  p.entry = newEntry;
+  p.qty = newQty;
+  p.margin = newMargin;
+  p.lev = newQty * newEntry / newMargin;
+  savePos(_adding.sym, p);
+  aClose();
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+/* 修改已有持仓的入场价 */
+function editPos(sym) {
+  const p = loadPos(sym);
+  if (!p) return;
+  const r = (window._last && window._last.rows || []).find(x => x.sym === sym);
+  _editing = { sym, dir: p.dir, atr: (r && r.atr) || 0, mode: "edit", stopTouched: true };
+  $("m-title").textContent = "修改 " + sym + " 入场价";
+  $("m-entry").value = p.entry;
+  $("m-stop").value = p.sl;
+  updateModalMsg();
+  $("modal").classList.add("on");
+}
+
+function onStopEdit() {
+  if (_editing) _editing.stopTouched = true;
+  updateModalMsg();
+}
+
+function updateModalMsg() {
+  if (!_editing) return;
+  const e = parseFloat($("m-entry").value);
+  const s = parseFloat($("m-stop").value);
+  const msg = $("m-msg");
+  msg.classList.remove("bad");
+  if (!isFinite(e) || !isFinite(s)) { msg.textContent = "填入数字"; return; }
+  const dist = Math.abs(e - s) / e;
+  if (dist <= 0) { msg.textContent = "止损不能等于入场价"; msg.classList.add("bad"); return; }
+  const riskUsd = CFG.CAPITAL * CFG.RISK;
+  const qty = riskUsd / (Math.abs(e - s));
+  const valid = _editing.dir === "L" ? s < e : s > e;
+  msg.innerHTML = "止损距离 <b style='color:#ffc94d'>" + (dist * 100).toFixed(2) + "%</b>　" +
+    "按此价位，数量应为 <b style='color:#8ab4ff'>" + qty.toFixed(6) + "</b>";
+  if (!valid) {
+    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 方向不对：做多时止损要低于入场价，做空要高于</span>";
+    msg.classList.add("bad");
+  }
+}
+
+function modalClose() {
+  $("modal").classList.remove("on");
+  _editing = null;
+}
+
+function modalSave() {
+  if (!_editing) return;
+  const e = parseFloat($("m-entry").value);
+  const s = parseFloat($("m-stop").value);
+  if (!isFinite(e) || !isFinite(s) || e <= 0) { alert("价格填写有误"); return; }
+  const valid = _editing.dir === "L" ? s < e : s > e;
+  if (!valid) { alert("止损方向和持仓方向不一致"); return; }
+
+  const old = loadPos(_editing.sym);
+  savePos(_editing.sym, {
+    dir: _editing.dir,
+    entry: e,
+    sl: s,
+    ext: _editing.mode === "edit" && old ? (old.ext || e) : e,
+    qty: old ? old.qty : +(CFG.CAPITAL * CFG.RISK / Math.abs(e - s)).toFixed(6),
+    lev: old ? old.lev : 1,
+    margin: old ? (old.margin || old.qty * old.entry / (old.lev || 1)) : (CFG.CAPITAL * CFG.RISK),
+    date: old ? old.date : new Date().toISOString().slice(0, 10),
+    edited: _editing.mode === "edit" ? true : undefined,
+  });
+  modalClose();
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+/* 山寨币做空：直接记录持仓 */
+function markAlt(sym, price, usd, qty, el) {
+  if (loadPos(sym)) { alert(sym + " 已经有持仓记录了"); return; }
+  if (!confirm("确认已在币安开好 " + sym + " 的空单？\n\n仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
+  savePos(sym, {
+    dir: "S", entry: price, sl: price * 2, ext: price,
+    qty: parseFloat(qty), lev: 1, margin: usd,
+    date: new Date().toISOString().slice(0, 10),
+    alt: true,
+  });
+  if (window._last) render(window._last.rows, window._last.sigs);
+  scanAll();
+}
+
+/* 复制做空参数 */
+function copyShort(sym, price, usd, qty, el) {
+  const txt = sym + " 做空\n现价 " + price + "\n仓位 " + usd.toFixed(2) + "U（1x）\n数量 " + qty +
+              "\n不设止损，持有 20 天";
+  const done = () => {
+    if (el) { const o = el.textContent; el.textContent = "✅ 已复制"; setTimeout(() => el.textContent = o, 1600); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else { fallbackCopy(txt, done); }
+}
+
+/* 复制下单参数（不用跳转币安网站，直接粘到 App 里） */
+function qtyStr(s) {
+  const step = STEP[s.sym] || 0.001;
+  const dec = String(step).split(".")[1] ? String(step).split(".")[1].length : 0;
+  return s.qty.toFixed(dec);
+}
+
+function copyOrder(sym, dir, lev, qty, stop, el) {
+  const txt = sym + "USDT " + (dir === "L" ? "做多" : "做空") +
+              "\n杠杆 " + lev + "x" +
+              "\n数量 " + qty +
+              "\n止损 " + stop;
+  const done = () => {
+    if (el) { const o = el.textContent; el.textContent = "✅ 已复制"; setTimeout(() => el.textContent = o, 1600); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else {
+    fallbackCopy(txt, done);
+  }
+}
+
+function fallbackCopy(txt, cb) {
+  const ta = document.createElement("textarea");
+  ta.value = txt;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); if (cb) cb(); }
+  catch (e) { alert("请手动复制：\n\n" + txt); }
+  document.body.removeChild(ta);
+}
+
+/* 点单个数值也能复制 */
+function copyOne(v, el) {
+  const txt = String(v);
+  const done = () => { if (el) { const o = el.textContent; el.textContent = "已复制"; setTimeout(() => el.textContent = o, 900); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else { fallbackCopy(txt, done); }
+}
+
+/* ============ 风险档位切换 ============ */
+function renderRiskBar() {
+  const bar = $("riskbar");
+  if (!bar) return;
+  bar.innerHTML = RISK_LEVELS.map(r =>
+    '<button class="' + (Math.abs(CFG.RISK - r.key) < 1e-9 ? "on" : "") +
+    '" onclick="setRisk(' + r.key + ')">' + r.name +
+    '<small>' + (r.key * 100) + '%</small></button>'
+  ).join("");
+}
+
+function setRisk(v) {
+  CFG.RISK = v;
+  try { localStorage.setItem("risk", String(v)); } catch (e) {}
+  renderRiskBar();
+  if (window._last) {
+    window._last.sigs.forEach(s => sizePosition(s));
+    render(window._last.rows, window._last.sigs);
+  }
+  $("hint").textContent = "已切换到 " + (v * 100) + "% 风险";
+}
+
+/* 恢复上次选择的风险档 */
+try {
+  const saved = parseFloat(localStorage.getItem("risk"));
+  if (saved && saved > 0 && saved <= 0.5) CFG.RISK = saved;
+} catch (e) {}
+renderRiskBar();
+
+/* 页面加载：有 3 分钟内缓存就显示缓存，否则自动检查 */
+(function () {
+  let shown = false;
+  try {
+    const c = localStorage.getItem("last_result");
+    if (c) {
+      const d = JSON.parse(c);
+      if (Date.now() - d.t < 180000) {
+        render(d.rows, d.sigs);
+        $("hint").textContent = "显示几分钟前的结果，点上面可刷新";
+        $("go").textContent = "🔍 重新检查";
+        shown = true;
+      }
+    }
+  } catch (e) {}
+  if (!shown) setTimeout(scanAll, 200);
+})();
+
+/* 保存结果供 mark() 重渲染 */
+const _origRender = render;
+window.render = function (rows, sigs) {
+  window._last = { rows, sigs };
+  try { localStorage.setItem("last_result", JSON.stringify({ rows, sigs, t: Date.now() })); } catch (e) {}
+  _origRender(rows, sigs);
+};
+</script>
+</body>
+</html>
