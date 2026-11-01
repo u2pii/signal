@@ -253,6 +253,7 @@ def main():
                        "pump_pct":round(hit["pct"],1),"pump_date":hit["date"],"days_ago":hit["days_ago"],
                        "prior20":round(m["prior20"]*100,1),"vol_ratio":round(m["vol_ratio"],2),
                        "qv":round(m["qv"]/10000,0),"risk":m["risk"],
+                       "chg24":round(m.get("chg24",0)*100,2),
                        "basis":(round(m["basis"]*100,2) if m.get("basis") is not None else None),
                        "vol_mult":(round(m["vol_mult"],1) if m.get("vol_mult") is not None else None)})
     shorts.sort(key=lambda x: -x["pump_pct"])
@@ -263,7 +264,9 @@ def main():
     watch.sort(key=lambda x: -x["watch"])
 
     def slim(m):
-        return {"sym":m["sym"],"price":m["cur"],"max_day":round(m["max_day"]*100,1),
+        return {"sym":m["sym"],"price":m["cur"],
+                "chg24":round(m.get("chg24",0)*100,2),
+                "max_day":round(m["max_day"]*100,1),
                 "prior20":round(m["prior20"]*100,1),"vol_ratio":round(m["vol_ratio"],2),
                 "now_vol":round(m["now_vol"],2),"to_high":round(m["to_high"]*100,1),
                 "drawdown5":round(m["drawdown5"]*100,1),"amp":round(m["amp"]*100,1),
@@ -279,8 +282,15 @@ def main():
         d["vol_mult"] = round(m["vol_mult"], 1) if m.get("vol_mult") is not None else None
         return d
 
+    # ===== 24 小时涨跌榜 =====
+    ranked = sorted(rows, key=lambda x: -x.get("chg24", 0))
+    gainers = [slim(m) for m in ranked[:8] if m.get("chg24", 0) > 0]
+    losers = [slim(m) for m in ranked[-8:] if m.get("chg24", 0) < 0]
+    losers.reverse()
+
     payload = {"updated":datetime.now(TZ).strftime("%Y-%m-%d %H:%M"),"source":"binance-futures",
                "scanned":len(rows),"short":shorts[:10],
+               "gainers":gainers,"losers":losers,
                "crowded":[cslim(m) for m in crowded[:10]],
                "risky":[slim(m) for m in risky[:15]],"watch":[slim(m) for m in watch[:15]],
                "note":"价格与K线均来自币安U本位永续合约。做空规则：1x、不挂止损、持有20天、每笔5%本金。已自动排除合约贴水>5%或合约/现货成交额>20倍的标的（空头陷阱）。"}
@@ -290,6 +300,15 @@ def main():
     print("--- 做空信号 ---")
     for s in shorts[:10]:
         print(f"  {s['sym']:<10} {s['symbol']:<14} 暴涨{s['pump_pct']:>6.1f}%  现价{s['price']:<12} 前20日{s['prior20']:>7.1f}%  量能{s['vol_ratio']:>6.2f}x")
+    print("\n--- 24h 涨幅榜 ---")
+    for m in gainers:
+        print(f"  {m['sym']:<10} {m['chg24']:>+7.2f}%  现价{m['price']:<12} "
+              f"日最大{m['max_day']:>6.1f}%  额{m['qv']:>8.0f}万U")
+    print("\n--- 24h 跌幅榜 ---")
+    for m in losers:
+        print(f"  {m['sym']:<10} {m['chg24']:>+7.2f}%  现价{m['price']:<12} "
+              f"日最大{m['max_day']:>6.1f}%  额{m['qv']:>8.0f}万U")
+
     print("\n--- 空头拥挤预警（别做空，可能继续挤）---")
     for m in crowded[:6]:
         b = f"{m['basis']*100:+.1f}%" if m.get("basis") is not None else "—"
