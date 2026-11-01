@@ -128,6 +128,28 @@ color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:1
 color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
 .nprow button.on.short{border-color:#19c07a;background:#0d1a14;color:#19c07a}
 .nprow button.on.long{border-color:#e8484f;background:#1a0f11;color:#ff8fa0}
+.altgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;margin-bottom:14px}
+.altcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.mbox{background:#12151d;border:1px solid #202633;border-radius:12px;padding:11px 11px 8px}
+.mttl{font-size:11.5px;color:#5f6779;font-weight:700;margin-bottom:6px}
+.mrow{display:flex;justify-content:space-between;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid #181c26}
+.mrow:last-child{border-bottom:none}
+.msym{font-weight:700;color:#e2e6f0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:88px}
+.mpx{font-size:9.5px;color:#4b5266;font-variant-numeric:tabular-nums;margin-top:1px}
+.mchg{font-size:11.5px;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.mchg.up{color:#19c07a}
+.mchg.dn{color:#ff6b7d}
+.sc2{background:#0d1015;border-left:2.5px solid #2a3448;border-radius:8px;padding:8px 9px;margin-bottom:7px}
+.sc2n{font-size:12.5px;font-weight:700;color:#e2e6f0;display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+.sc2b{font-size:10.5px;font-weight:700}
+.sc2l{font-size:10px;color:#5f6779;margin-top:3px;line-height:1.5}
+.sc2btn{width:100%;margin-top:7px;padding:7px;border-radius:7px;border:none;font-size:11.5px;
+font-weight:700;font-family:inherit;cursor:pointer}
+.sc2empty{font-size:11px;color:#3d4352;padding:8px 0}
+.morebox{margin-top:6px}
+.morebox summary{font-size:12px;color:#5f6779;padding:11px 13px;background:#12151d;
+border:1px solid #202633;border-radius:11px;cursor:pointer;list-style:none}
+.morebox summary::-webkit-details-marker{display:none}
 .tabs{display:flex;gap:8px;margin-bottom:14px}
 .tabs button{flex:1;padding:11px 4px;border-radius:12px;border:1px solid #202633;background:#12151d;
 color:#7d8699;font-size:14px;font-weight:700;font-family:inherit}
@@ -1092,199 +1114,116 @@ async function renderAlts(holds) {
   if (TAB !== "alt") { box.innerHTML = ""; return; }
   if (!ALT) ALT = await loadAlts();
   if (!ALT) { box.innerHTML = ""; return; }
-  // 山寨页的持仓，放到列表下面
-  const holdHtml = (TAB === "alt" && holds && holds.length) ?
-    '<h3>我的山寨持仓</h3>' + buildHoldCards(holds) : "";
 
-  let h = '<h3>山寨币监控 · ' + (ALT.updated || "") + "</h3>";
-
-  /* ---- 24h 涨跌榜 ---- */
   const gain = ALT.gainers || [], lose = ALT.losers || [];
-  if (gain.length || lose.length) {
-    h += '<div class="movbox">';
-    if (gain.length) {
-      h += '<div class="movhead">📈 24h 涨幅榜</div><div class="movgrid">';
-      gain.forEach(a => {
-        h += '<div class="movrow"><span class="movsym">' + a.sym + '</span>' +
-          '<span class="movchg up">+' + a.chg24 + '%</span>' +
-          '<span class="movpx">' + f(a.price) + '</span></div>';
-      });
-      h += '</div>';
-    }
-    if (lose.length) {
-      h += '<div class="movhead" style="margin-top:12px">📉 24h 跌幅榜</div><div class="movgrid">';
-      lose.forEach(a => {
-        h += '<div class="movrow"><span class="movsym">' + a.sym + '</span>' +
-          '<span class="movchg dn">' + a.chg24 + '%</span>' +
-          '<span class="movpx">' + f(a.price) + '</span></div>';
-      });
-      h += '</div>';
-    }
-    h += '</div>';
-  }
+  const pbs = ALT.pullback || [], shorts = ALT.short || [];
 
-  /* ---- 回踩回升（做多观察，未验证） ---- */
-  const pbs = ALT.pullback || [];
+  /* ============ 左列：涨跌榜 ============ */
+  let left = '<div class="mbox">';
+  if (gain.length) {
+    left += '<div class="mttl">📈 涨幅榜</div>';
+    gain.slice(0, 7).forEach(a => {
+      left += '<div class="mrow"><div><div class="msym">' + a.sym + '</div>' +
+        '<div class="mpx">' + f(a.price) + '</div></div>' +
+        '<span class="mchg up">+' + a.chg24 + '%</span></div>';
+    });
+  }
+  if (lose.length) {
+    left += '<div class="mttl" style="margin-top:12px">📉 跌幅榜</div>';
+    lose.slice(0, 7).forEach(a => {
+      left += '<div class="mrow"><div><div class="msym">' + a.sym + '</div>' +
+        '<div class="mpx">' + f(a.price) + '</div></div>' +
+        '<span class="mchg dn">' + a.chg24 + '%</span></div>';
+    });
+  }
+  left += '</div>';
+
+  /* ============ 右列：信号 ============ */
+  let right = '<div class="mbox" style="border-color:#3a2e10">';
+  right += '<div class="mttl" style="color:#f0be5a">🔄 回踩做多</div>';
   if (pbs.length) {
-    h += '<div class="shortbox" style="background:#141008;border-color:#3a2e10">' +
-      '<div class="shorthead" style="color:#f0be5a">🔄 回踩回升（做多观察）</div>' +
-      '<div class="shortrule" style="background:#161106">' +
-        '暴涨后回落，昨天收涨 = 洗盘结束的信号<br>' +
-        '<b>建议：入场用现价，止损 -10%，持 20 天，别设止盈</b><br>' +
-        '<span style="color:#f0be5a">⚠️ 144 笔样本 t=1.64，未达统计显著，胜率仅 16~29%，靠少数大赚</span>' +
-      '</div>';
-    pbs.forEach(a => {
+    pbs.slice(0, 4).forEach(a => {
       const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
       const qty = posUsd / a.price;
       const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
-      h += '<div class="scard" style="border-left-color:#f0be5a">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="sbadge" style="background:#3a2e10;color:#f0be5a">暴涨 +' + a.pump_pct + '%</span></div>' +
-        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
-        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
-        '<div class="aline">已回落 <b style="color:#f0be5a">-' + a.pullback + '%</b>' +
-        '（' + a.days_since + ' 天前暴涨）　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
-        '<div class="aline">参考止损 <b style="color:#ffc94d">' + f(a.stop) + '</b>（-10%）　仓位 ' +
-        posUsd.toFixed(2) + 'U　数量 ' + qs + '</div>' +
-        '<div class="acts">' +
-        '<a class="p" style="background:#c9a227;color:#1a1408" ' +
-        'onclick="copyPullback(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ',this)">📋 复制做多参数</a>' +
-        '</div></div>';
-    });
-    h += '</div>';
-  }
-
-  /* ---- 可做空信号（最重要的是这个） ---- */
-  const shorts = ALT.short || [];
-  if (shorts.length) {
-    h += '<div class="shortbox">' +
-      '<div class="shorthead">🎯 山寨币做空信号</div>' +
-      '<div class="shortrule">回测 435 个暴涨事件：胜率 69% · 中位 +20.6% · t=4.55<br>' +
-      '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
-      '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
-    shorts.forEach(a => {
-      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);   // 按账户余额与风险比例算，不低于下单下限
-      const qty = posUsd / a.price;
-      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
-      h += '<div class="scard">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="bnok">币安合约</span>' +
-        '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
-        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x' + (posUsd > CFG.CAPITAL * 0.05 + 0.01 ? '，已按下单下限' : '') + '）</div>' +
-        '<div class="aline">数量 <b>' + qs + '</b>' +
-        '　持有 <b>20 天</b>　不设止损</div>' +
-        '<div class="aline" style="font-size:11.5px;color:#5f6779">' +
-        '前20日 ' + a.prior20 + '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '</div>' +
-        '<div class="acts">' +
-        '<a class="p" style="background:#e8484f;color:#fff" ' +
-        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">📋 复制参数</a>' +
-        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\')">我已开空</a></div>' +
+      right += '<div class="sc2" style="border-left-color:#c9a227">' +
+        '<div class="sc2n">' + a.sym + '<span class="sc2b" style="color:#f0be5a">+' + a.pump_pct + '%</span></div>' +
+        '<div class="sc2l">回落 -' + a.pullback + '% · 昨收 +' + a.last_chg + '%</div>' +
+        '<div class="sc2l">止损 ' + f(a.stop) + '</div>' +
+        '<button class="sc2btn" style="background:#3a2e10;color:#f0be5a" ' +
+        'onclick="copyPullback(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ',this)">复制</button>' +
         '</div>';
     });
-    h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
-         '<br>⚠️ 只在币安有该合约时才能做；小币深度差，用限价单。</div></div>';
+  } else {
+    right += '<div class="sc2empty">今天没有</div>';
   }
 
-  if (ALT.risky && ALT.risky.length) {
-    h += '<div class="warn" style="margin-bottom:10px">⚠️ <b>高危名单</b>：涨得猛 + 前期已涨很多 + 量能不足。' +
-         '历史上这类币 5 天内跌超 50% 的概率约 20%，别买、持有的话考虑减仓。</div>';
-    ALT.risky.forEach(a => {
-      h += '<div class="altcard bad">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="ab">风险 ' + a.risk + "</span></div>" +
-        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
-          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
-        '　日最大 <b class="bad">+' + a.max_day + '%</b>' +
-        '　20日 <b class="bad">+' + a.prior20 + '%</b></div>' +
-        '<div class="aline">量能 <b>' + a.vol_ratio + 'x</b>' +
-        '　距5日高点 <b>' + a.drawdown5 + '%</b></div></div>';
+  right += '<div class="mttl" style="margin-top:14px;color:#ff9aa6">🎯 做空信号</div>';
+  if (shorts.length) {
+    shorts.slice(0, 4).forEach(a => {
+      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
+      const qty = posUsd / a.price;
+      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
+      right += '<div class="sc2" style="border-left-color:#e8484f">' +
+        '<div class="sc2n">' + a.sym + '<span class="sc2b" style="color:#ff9aa6">+' + a.pump_pct + '%</span></div>' +
+        '<div class="sc2l">' + f(a.price) + ' · ' + posUsd.toFixed(2) + 'U</div>' +
+        '<div class="sc2l">1x · 持20天 · 不止损</div>' +
+        '<button class="sc2btn" style="background:#2a1216;color:#ff9aa6" ' +
+        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">复制</button>' +
+        '</div>';
     });
+  } else {
+    right += '<div class="sc2empty">今天没有</div>';
+  }
+  right += '</div>';
+
+  /* ============ 组装 ============ */
+  let h = '<h3>山寨监控 · ' + (ALT.updated || "") + '</h3>';
+  h += '<div class="altgrid"><div class="altcol">' + left + '</div>' +
+       '<div class="altcol">' + right + '</div></div>';
+
+  // 持仓：双列下面，整宽
+  if (holds && holds.length) {
+    h += buildHoldCards(holds, '我的山寨持仓');
   }
 
-  if (ALT.watch && ALT.watch.length) {
-    h += '<div class="warn" style="margin:14px 0 10px;background:#0e1520;border-color:#1e2c44;color:#8ab4ff">' +
-         '👀 <b>观察名单</b>：成交量突然放大但价格还没大涨，可能有异动。' +
-         '<br><span style="opacity:.75;font-size:11.5px">注意：这只是观察，回测证明按这个做单没有统计优势</span></div>';
-    ALT.watch.forEach(a => {
-      h += '<div class="altcard">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="aw">观察 ' + a.watch + "</span></div>" +
-        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+  // 高危 / 观察：折叠起来，不占地方
+  if ((ALT.risky && ALT.risky.length) || (ALT.watch && ALT.watch.length)) {
+    h += '<details class="morebox"><summary>⚠️ 高危名单 / 👀 观察名单（点开看）</summary>';
+    if (ALT.risky && ALT.risky.length) {
+      h += '<div class="warn" style="margin:10px 0">⚠️ <b>高危</b>：涨得猛+前期已涨很多+量能不足，' +
+           '5 天内跌超 50% 的概率约 20%</div>';
+      ALT.risky.forEach(a => {
+        h += '<div class="altcard bad"><div class="atop"><span class="anm">' + a.sym + '</span>' +
+          '<span class="ab">风险 ' + a.risk + '</span></div>' +
+          '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
           (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
-        '　量能 <b class="good">' + a.now_vol + 'x</b>' +
-        '　距20日高 <b>' + a.to_high + '%</b></div>' +
-        '<div class="aline">20日涨跌 <b>' + a.prior20 + '%</b>' +
-        '　日均振幅 <b>' + a.amp + '%</b></div></div>';
-    });
+          '　日最大 <b class="bad">+' + a.max_day + '%</b>' +
+          '　20日 <b class="bad">+' + a.prior20 + '%</b></div>' +
+          '<div class="aline">量能 <b>' + a.vol_ratio + 'x</b>　距5日高点 <b>' + a.drawdown5 + '%</b></div></div>';
+      });
+    }
+    if (ALT.watch && ALT.watch.length) {
+      h += '<div class="warn" style="margin:14px 0 10px;background:#0e1520;border-color:#1e2c44;color:#8ab4ff">' +
+           '👀 <b>观察</b>：成交量突增但价格没大涨（按这个做单没有统计优势）</div>';
+      ALT.watch.forEach(a => {
+        h += '<div class="altcard"><div class="atop"><span class="anm">' + a.sym + '</span>' +
+          '<span class="aw">观察 ' + a.watch + '</span></div>' +
+          '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
+          '　量能 <b class="good">' + a.now_vol + 'x</b>' +
+          '　距20日高 <b>' + a.to_high + '%</b></div>' +
+          '<div class="aline">20日涨跌 <b>' + a.prior20 + '%</b>　日均振幅 <b>' + a.amp + '%</b></div></div>';
+      });
+    }
+    h += '</details>';
   }
 
   if (ALT.note) {
-    h += '<div style="font-size:11px;color:#3d4352;line-height:1.8;margin-top:12px">' + ALT.note + "</div>";
+    h += '<div style="font-size:11px;color:#3d4352;line-height:1.8;margin-top:12px">' + ALT.note + '</div>';
   }
-  box.innerHTML = h + holdHtml;
+  box.innerHTML = h;
 }
-
-/* ============ 记录 / 修改持仓（可改入场价） ============ */
-let _editing = null;   // {sym, dir, atr, mode:'new'|'edit', stopTouched}
-
-function mark(sym, dir) {
-  const p = loadPos(sym);
-  if (p) { alert(sym + " 已经记录过开仓了，可在持仓卡片里修改"); return; }
-  const s = (window._last && window._last.sigs || []).find(x => x.sym === sym);
-  if (!s) { alert("找不到这个信号，请重新检查"); return; }
-  _editing = { sym, dir, atr: s.atr, mode: "new", stopTouched: false, sig: s };
-  $("m-title").textContent = "记录开仓 " + sym + " " + (dir === "L" ? "做多" : "做空");
-  $("m-entry").value = s.cur;
-  $("m-stop").value = s.stop.toFixed(s.stop >= 1000 ? 1 : s.stop >= 1 ? 3 : 5);
-  updateModalMsg();
-  $("modal").classList.add("on");
-}
-
-function onEntryEdit() {
-  if (!_editing || _editing.stopTouched) return;
-  const e = parseFloat($("m-entry").value);
-  if (!isFinite(e) || !_editing.atr) return;
-  const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
-  $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
-  updateModalMsg();
-}
-
-/* 查看并管理全部持仓记录 */
-function showAllPos() {
-  const keys = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0);
-  if (!keys.length) { alert("没有任何持仓记录"); return; }
-  const lines = keys.map(k => {
-    const p = JSON.parse(localStorage.getItem(k));
-    return (k.slice(4) + "  " + (p.dir === "L" ? "多" : "空") +
-            "  入场" + p.entry + "  数量" + p.qty +
-            "  保证金" + (p.margin ? p.margin.toFixed(2) : "—"));
-  });
-  const msg = "共 " + keys.length + " 条记录：\n\n" + lines.join("\n") +
-              "\n\n要删除哪一条？输入币名（如 AIN），取消则不删。";
-  const ans = prompt(msg, "");
-  if (!ans) return;
-  const sym = ans.trim().toUpperCase();
-  if (!loadPos(sym)) { alert("没有 " + sym + " 的记录"); return; }
-  closePos(sym);
-}
-
-/* 已持有天数 */
-function heldDays(p, isShort) {
-  try {
-    const d0 = new Date(p.date + "T00:00:00").getTime();
-    const days = Math.floor((Date.now() - d0) / 86400000);
-    return isShort ? (days + "/20 天") : (days + " 天");
-  } catch (e) { return "—"; }
-}
-
-/* ============ 手动记录持仓 ============ */
-let _npDir = "S";
-let BASE_CAP = 97.66;        // 用户设定的基准余额（不含浮动盈亏）
-let FLOAT_PNL = 0;           // 当前所有持仓的浮动盈亏
-let _npCur = 0, _npCurSym = "";
-
 async function npFetchPrice(sym) {
   sym = (sym || "").trim().toUpperCase();
   if (!sym || (_npCurSym === sym && _npCur > 0)) return;
