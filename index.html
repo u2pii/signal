@@ -92,6 +92,15 @@ color:#8b93a6;font-size:15px;font-weight:600;font-family:inherit}
 .aline b{color:#c9cfdd;font-variant-numeric:tabular-nums}
 .aline b.bad{color:#ff6b7d}
 .aline b.good{color:#19c07a}
+.movbox{background:#12151d;border:1px solid #202633;border-radius:13px;padding:13px 15px;margin-bottom:14px}
+.movhead{font-size:12px;color:#5f6779;margin-bottom:8px;font-weight:600}
+.movgrid{display:flex;flex-direction:column;gap:5px}
+.movrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;font-size:13.5px}
+.movsym{font-weight:700;color:#e2e6f0}
+.movchg{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+.movchg.up{color:#19c07a}
+.movchg.dn{color:#ff6b7d}
+.movpx{font-size:12px;color:#5f6779;font-variant-numeric:tabular-nums;text-align:right;min-width:74px}
 .shortbox{background:#0f1410;border:1px solid #1e3a28;border-radius:14px;padding:14px;margin-bottom:16px}
 .shorthead{font-size:15.5px;font-weight:700;color:#19c07a;margin-bottom:8px}
 .shortrule{font-size:12px;color:#7d8699;line-height:1.7;background:#0a120d;border-radius:9px;
@@ -899,6 +908,31 @@ async function renderAlts() {
 
   let h = '<h3>山寨币监控 · ' + (ALT.updated || "") + "</h3>";
 
+  /* ---- 24h 涨跌榜 ---- */
+  const gain = ALT.gainers || [], lose = ALT.losers || [];
+  if (gain.length || lose.length) {
+    h += '<div class="movbox">';
+    if (gain.length) {
+      h += '<div class="movhead">📈 24h 涨幅榜</div><div class="movgrid">';
+      gain.forEach(a => {
+        h += '<div class="movrow"><span class="movsym">' + a.sym + '</span>' +
+          '<span class="movchg up">+' + a.chg24 + '%</span>' +
+          '<span class="movpx">' + f(a.price) + '</span></div>';
+      });
+      h += '</div>';
+    }
+    if (lose.length) {
+      h += '<div class="movhead" style="margin-top:12px">📉 24h 跌幅榜</div><div class="movgrid">';
+      lose.forEach(a => {
+        h += '<div class="movrow"><span class="movsym">' + a.sym + '</span>' +
+          '<span class="movchg dn">' + a.chg24 + '%</span>' +
+          '<span class="movpx">' + f(a.price) + '</span></div>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
   /* ---- 可做空信号（最重要的是这个） ---- */
   const shorts = ALT.short || [];
   if (shorts.length) {
@@ -938,8 +972,10 @@ async function renderAlts() {
       h += '<div class="altcard bad">' +
         '<div class="atop"><span class="anm">' + a.sym + '</span>' +
         '<span class="ab">风险 ' + a.risk + "</span></div>" +
-        '<div class="aline">最大单日涨 <b class="bad">+' + a.max_day + '%</b>' +
-        '　20日累计 <b class="bad">+' + a.prior20 + '%</b></div>' +
+        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "bad" : "good") + '">' +
+          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
+        '　日最大 <b class="bad">+' + a.max_day + '%</b>' +
+        '　20日 <b class="bad">+' + a.prior20 + '%</b></div>' +
         '<div class="aline">量能 <b>' + a.vol_ratio + 'x</b>' +
         '　距5日高点 <b>' + a.drawdown5 + '%</b></div></div>';
     });
@@ -953,7 +989,9 @@ async function renderAlts() {
       h += '<div class="altcard">' +
         '<div class="atop"><span class="anm">' + a.sym + '</span>' +
         '<span class="aw">观察 ' + a.watch + "</span></div>" +
-        '<div class="aline">当前量能 <b class="good">' + a.now_vol + 'x</b>' +
+        '<div class="aline">24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
+          (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b>' +
+        '　量能 <b class="good">' + a.now_vol + 'x</b>' +
         '　距20日高 <b>' + a.to_high + '%</b></div>' +
         '<div class="aline">20日涨跌 <b>' + a.prior20 + '%</b>' +
         '　日均振幅 <b>' + a.amp + '%</b></div></div>';
