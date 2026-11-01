@@ -128,6 +128,11 @@ color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:1
 color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
 .nprow button.on.short{border-color:#19c07a;background:#0d1a14;color:#19c07a}
 .nprow button.on.long{border-color:#e8484f;background:#1a0f11;color:#ff8fa0}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button{flex:1;padding:11px 4px;border-radius:12px;border:1px solid #202633;background:#12151d;
+color:#7d8699;font-size:14px;font-weight:700;font-family:inherit}
+.tabs button.on{border-color:#2f6bff;background:#16224a;color:#8ab4ff}
+.tabs button small{display:block;font-size:10px;font-weight:400;opacity:.7;margin-top:2px}
 .capbar{display:flex;align-items:center;gap:9px;background:#12151d;border:1px solid #202633;
 border-radius:13px;padding:12px 15px;margin-bottom:14px;cursor:pointer}
 .capbar span{font-size:12.5px;color:#5f6779}
@@ -171,6 +176,11 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <button class="btn" id="go" onclick="scanAll()">🔍 检查信号</button>
 <div class="hint" id="hint">每天点一次，30 秒看结果</div>
+
+<div class="tabs">
+  <button id="tab-main" class="on" onclick="setTAB('main')">主流币<small>信号+持仓</small></button>
+  <button id="tab-alt" onclick="setTAB('alt')">山寨币<small>涨跌+信号+持仓</small></button>
+</div>
 
 <div class="risk" id="riskbar"></div>
 
@@ -838,66 +848,10 @@ function setSigLev(sym, lev) {
   render(window._last.rows, list);
 }
 
-function render(rows, sigs) {
-  let h = "";
-
-  const errs = rows.filter(r => r.err);
-  if (errs.length) {
-    h += '<div class="err">取数失败：' + errs.map(r => r.sym).join("、") +
-         '<br><span style="font-size:12px;color:#8b6b6b">检查手机网络，或换个时间再试</span></div>';
-  }
-  if (rows._dropped && rows._dropped.length) {
-    h += '<div class="warn">保证金不够，跳过：' +
-         rows._dropped.map(s => s.sym).join("、") +
-         '<br><span style="opacity:.75">同时开仓占用保证金不能超过本金</span></div>';
-  }
-
-  if (!sigs.length) {
-    h += '<div class="empty"><b>今天没有信号</b>关掉就行，明天再看</div>';
-  } else {
-    sigs.forEach(s => {
-      const rec = load(s.sym);
-      const isDone = rec && rec.dir === s.sig;
-      h += '<div class="card go' + (isDone ? " done" : "") + '">' +
-        '<div class="top"><span class="sym">' + s.sym + '</span>' +
-        '<span class="pill ' + s.sig + '">' + (s.sig === "L" ? "做多 ↗" : "做空 ↘") + '</span>' +
-        (isDone ? '<span class="pill ok">已开仓</span>' : '<span class="pill x">立即开仓</span>') +
-        '</div><div class="kv">' +
-        '<div><span>入场</span><b>' + f(s.cur) + '</b></div>' +
-        '<div><span>止损</span><b class="stop" onclick="copyOne(\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">' + f(s.stop) + ' 📋</b></div>' +
-        '<div><span>杠杆</span><b class="lev">' + s.lev + 'x 📋</b></div>' +
-        '<div><span>数量</span><b onclick="copyOne(\'' + qtyStr(s) + '\',this)">' + qtyStr(s) + ' 📋</b></div>' +
-        '<div><span>名义</span><b onclick="editSigNotional(\'' + s.sym + '\')" style="color:#8ab4ff">' +
-          s.notional.toFixed(1) + 'U ✏️</b></div>' +
-        '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
-        '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
-        '</div>' +
-        (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
-        (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
-        '<div class="levrow" data-sym="' + s.sym + '">' +
-          '<span class="levlabel">选杠杆</span>' +
-          [1,2,3,5,10].map(function(L){
-            var minL = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
-            var dis = L < minL;
-            return '<button class="levbtn' + (s.lev === L ? ' on' : '') + (dis ? ' dis' : '') +
-              '" ' + (dis ? 'disabled' : ('onclick="setSigLev(\'' + s.sym + '\',' + L + ')"')) +
-              '>' + L + 'x</button>';
-          }).join('') +
-          '<button class="levbtn hint" onclick="setSigLev(\'' + s.sym + '\',0)">自动</button>' +
-        '</div>' +
-        '<div class="acts">' +
-        '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
-        '<a onclick="mark(\'' + s.sym + '\',\'' + s.sig + '\')">' +
-        (isDone ? '已记录 ✓' : '我已开仓') + '</a>' +
-        '</div></div>';
-    });
-  }
-
-  /* ---- 持仓中：移动止损 ---- */
-  const holds = rows._holdings || [];
-  if (holds.length) {
-    h += '<h3>我的持仓</h3>';
-    holds.forEach(r => {
+function buildHoldCards(list, title) {
+  if (!list || !list.length) return '';
+  let h = '<h3>' + title + '</h3>';
+  list.forEach(r => {
       const p = r.pos, info = r.posInfo;
       // 统一判断：不在主流列表里的一律按山寨处理（不依赖记录里有没有 alt 标记）
       const isAlt = p.alt === true || CFG.COINS.indexOf(r.sym) < 0;
@@ -997,7 +951,77 @@ function render(rows, sigs) {
       p._newSl = info.sl;
       p._newExt = info.ext;
     });
+  return h;
+}
+
+function render(rows, sigs) {
+  let h = "";
+
+  const errs = rows.filter(r => r.err);
+  if (errs.length) {
+    h += '<div class="err">取数失败：' + errs.map(r => r.sym).join("、") +
+         '<br><span style="font-size:12px;color:#8b6b6b">检查手机网络，或换个时间再试</span></div>';
   }
+  if (rows._dropped && rows._dropped.length) {
+    h += '<div class="warn">保证金不够，跳过：' +
+         rows._dropped.map(s => s.sym).join("、") +
+         '<br><span style="opacity:.75">同时开仓占用保证金不能超过本金</span></div>';
+  }
+
+  if (TAB !== "main") {
+    // 山寨页：内容由 renderAlts 输出，这里直接返回
+    $("out").innerHTML = "";
+    renderAlts(holds);
+    return;
+  }
+  if (!sigs.length) {
+    h += '<div class="empty"><b>今天没有信号</b>关掉就行，明天再看</div>';
+  } else {
+    sigs.forEach(s => {
+      const rec = load(s.sym);
+      const isDone = rec && rec.dir === s.sig;
+      h += '<div class="card go' + (isDone ? " done" : "") + '">' +
+        '<div class="top"><span class="sym">' + s.sym + '</span>' +
+        '<span class="pill ' + s.sig + '">' + (s.sig === "L" ? "做多 ↗" : "做空 ↘") + '</span>' +
+        (isDone ? '<span class="pill ok">已开仓</span>' : '<span class="pill x">立即开仓</span>') +
+        '</div><div class="kv">' +
+        '<div><span>入场</span><b>' + f(s.cur) + '</b></div>' +
+        '<div><span>止损</span><b class="stop" onclick="copyOne(\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">' + f(s.stop) + ' 📋</b></div>' +
+        '<div><span>杠杆</span><b class="lev">' + s.lev + 'x 📋</b></div>' +
+        '<div><span>数量</span><b onclick="copyOne(\'' + qtyStr(s) + '\',this)">' + qtyStr(s) + ' 📋</b></div>' +
+        '<div><span>名义</span><b onclick="editSigNotional(\'' + s.sym + '\')" style="color:#8ab4ff">' +
+          s.notional.toFixed(1) + 'U ✏️</b></div>' +
+        '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
+        '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
+        '</div>' +
+        (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
+        (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
+        '<div class="levrow" data-sym="' + s.sym + '">' +
+          '<span class="levlabel">选杠杆</span>' +
+          [1,2,3,5,10].map(function(L){
+            var minL = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
+            var dis = L < minL;
+            return '<button class="levbtn' + (s.lev === L ? ' on' : '') + (dis ? ' dis' : '') +
+              '" ' + (dis ? 'disabled' : ('onclick="setSigLev(\'' + s.sym + '\',' + L + ')"')) +
+              '>' + L + 'x</button>';
+          }).join('') +
+          '<button class="levbtn hint" onclick="setSigLev(\'' + s.sym + '\',0)">自动</button>' +
+        '</div>' +
+        '<div class="acts">' +
+        '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
+        '<a onclick="mark(\'' + s.sym + '\',\'' + s.sig + '\')">' +
+        (isDone ? '已记录 ✓' : '我已开仓') + '</a>' +
+        '</div></div>';
+    });
+  }
+
+  /* ---- 持仓中：移动止损 ---- */
+  const allHold = rows._holdings || [];
+  const holds = allHold.filter(function(h){
+    const altP = (h.pos.alt === true) || isAltSym(h.sym);
+    return TAB === "alt" ? altP : !altP;
+  });
+  h += buildHoldCards(holds, '我的持仓');
 
   h += '<h3>主流币 · 按接近突破排序</h3>';
   // 计算每个币到最近突破位的距离，排序（已触发的排最前）
@@ -1058,11 +1082,14 @@ async function loadAlts() {
   } catch (e) { return null; }
 }
 
-async function renderAlts() {
+async function renderAlts(holds) {
   if (!ALT) ALT = await loadAlts();
   const box = $("alts");
   if (!box) return;
   if (!ALT) { box.innerHTML = ""; return; }
+  // 山寨页的持仓，放到列表下面
+  const holdHtml = (TAB === "alt" && holds && holds.length) ?
+    '<h3>我的山寨持仓</h3>' + buildHoldCards(holds) : "";
 
   let h = '<h3>山寨币监控 · ' + (ALT.updated || "") + "</h3>";
 
@@ -1191,7 +1218,7 @@ async function renderAlts() {
   if (ALT.note) {
     h += '<div style="font-size:11px;color:#3d4352;line-height:1.8;margin-top:12px">' + ALT.note + "</div>";
   }
-  box.innerHTML = h;
+  box.innerHTML = h + holdHtml;
 }
 
 /* ============ 记录 / 修改持仓（可改入场价） ============ */
@@ -1613,6 +1640,30 @@ function delSettle(i) {
 }
 
 function closeSettle() { $("smodal").classList.remove("on"); }
+
+/* ============ 页签：主流 / 山寨 ============ */
+let TAB = "main";
+
+function isAltSym(sym) { return CFG.COINS.indexOf(sym) < 0; }
+
+function syncTabs() {
+  const a = $("tab-main"), b = $("tab-alt");
+  if (a) a.classList.toggle("on", TAB === "main");
+  if (b) b.classList.toggle("on", TAB === "alt");
+}
+
+function setTAB(t) {
+  TAB = t;
+  syncTabs();
+  try { localStorage.setItem("tab", t); } catch (e) {}
+  if (window._last) render(window._last.rows, window._last.sigs);
+  else scanAll();
+}
+
+try {
+  const saved = localStorage.getItem("tab");
+  if (saved === "main" || saved === "alt") TAB = saved;
+} catch (e) {}
 
 /* ============ 账户余额 ============ */
 function loadCap() {
@@ -2073,6 +2124,7 @@ function startApp() {
   _appStarted = true;
   $("gmodal").style.display = "none";
 
+  syncTabs();
   loadCap();
   refreshCapBar();
   if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 600);
