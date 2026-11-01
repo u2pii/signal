@@ -1122,38 +1122,6 @@ async function renderAlts(holds) {
     h += '</div>';
   }
 
-  /* ---- 可做空信号（最重要的是这个） ---- */
-  const shorts = ALT.short || [];
-  if (shorts.length) {
-    h += '<div class="shortbox">' +
-      '<div class="shorthead">🎯 山寨币做空信号</div>' +
-      '<div class="shortrule">回测 435 个暴涨事件：胜率 69% · 中位 +20.6% · t=4.55<br>' +
-      '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
-      '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
-    shorts.forEach(a => {
-      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);   // 按账户余额与风险比例算，不低于下单下限
-      const qty = posUsd / a.price;
-      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
-      h += '<div class="scard">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="bnok">币安合约</span>' +
-        '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
-        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x' + (posUsd > CFG.CAPITAL * 0.05 + 0.01 ? '，已按下单下限' : '') + '）</div>' +
-        '<div class="aline">数量 <b>' + qs + '</b>' +
-        '　持有 <b>20 天</b>　不设止损</div>' +
-        '<div class="aline" style="font-size:11.5px;color:#5f6779">' +
-        '前20日 ' + a.prior20 + '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '</div>' +
-        '<div class="acts">' +
-        '<a class="p" style="background:#e8484f;color:#fff" ' +
-        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">📋 复制参数</a>' +
-        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\')">我已开空</a></div>' +
-        '</div>';
-    });
-    h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
-         '<br>⚠️ 只在币安有该合约时才能做；小币深度差，用限价单。</div></div>';
-  }
-
   /* ---- 回踩回升（做多观察，未验证） ---- */
   const pbs = ALT.pullback || [];
   if (pbs.length) {
@@ -1184,6 +1152,38 @@ async function renderAlts(holds) {
         '</div></div>';
     });
     h += '</div>';
+  }
+
+  /* ---- 可做空信号（最重要的是这个） ---- */
+  const shorts = ALT.short || [];
+  if (shorts.length) {
+    h += '<div class="shortbox">' +
+      '<div class="shorthead">🎯 山寨币做空信号</div>' +
+      '<div class="shortrule">回测 435 个暴涨事件：胜率 69% · 中位 +20.6% · t=4.55<br>' +
+      '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
+      '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
+    shorts.forEach(a => {
+      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);   // 按账户余额与风险比例算，不低于下单下限
+      const qty = posUsd / a.price;
+      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
+      h += '<div class="scard">' +
+        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+        '<span class="bnok">币安合约</span>' +
+        '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
+        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
+        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x' + (posUsd > CFG.CAPITAL * 0.05 + 0.01 ? '，已按下单下限' : '') + '）</div>' +
+        '<div class="aline">数量 <b>' + qs + '</b>' +
+        '　持有 <b>20 天</b>　不设止损</div>' +
+        '<div class="aline" style="font-size:11.5px;color:#5f6779">' +
+        '前20日 ' + a.prior20 + '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '</div>' +
+        '<div class="acts">' +
+        '<a class="p" style="background:#e8484f;color:#fff" ' +
+        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">📋 复制参数</a>' +
+        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\')">我已开空</a></div>' +
+        '</div>';
+    });
+    h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
+         '<br>⚠️ 只在币安有该合约时才能做；小币深度差，用限价单。</div></div>';
   }
 
   if (ALT.risky && ALT.risky.length) {
