@@ -517,8 +517,9 @@ const del = (s) => { try { localStorage.removeItem(K(s)) } catch(e) {} };
 
 /* 更新移动止损（吊灯）：持仓期极值 ∓ 3×ATR，只朝有利方向 */
 function updateTrailing(p, r) {
-  // 山寨币做空：按策略不设止损、持有 20 天，只显示盈亏
-  if (p.alt) {
+  // 山寨币：按策略不设移动止损（主流币才用吊灯止损）
+  const _isAlt = p.alt === true || CFG.COINS.indexOf(r.sym) < 0;
+  if (_isAlt) {
     const pnl = (r.cur / p.entry - 1) * 100 * (p.dir === "L" ? 1 : -1);
     return { sl: p.sl, ext: p.ext || p.entry, moved: false, pnlPct: pnl,
              shouldClose: false, closeReason: null, atr: r.atr };
@@ -898,6 +899,8 @@ function render(rows, sigs) {
     h += '<h3>我的持仓</h3>';
     holds.forEach(r => {
       const p = r.pos, info = r.posInfo;
+      // 统一判断：不在主流列表里的一律按山寨处理（不依赖记录里有没有 alt 标记）
+      const isAlt = p.alt === true || CFG.COINS.indexOf(r.sym) < 0;
       const dirTxt = p.dir === "L" ? "多" : "空";
       const cls = p.dir === "L" ? "L" : "S";
       const pnlCls = info.pnlPct >= 0 ? "up" : "dn";
@@ -919,7 +922,7 @@ function render(rows, sigs) {
         '<span class="pill ' + cls + '">' + dirTxt + '</span>' +
         '<span class="mmbadge ' + ((p.marginMode || 'isolated') === 'cross' ? 'cross' : 'iso') + '">' +
           ((p.marginMode || 'isolated') === 'cross' ? '全仓' : '逐仓') + '</span>' +
-        (p.alt ? '' :
+        (isAlt ? '' :
           (r.sig
             ? '<span class="pill ' + r.sig + '" style="font-size:11px">信号持续</span>'
             : '<span class="pill ok" style="font-size:11px">信号已失效</span>')) +
@@ -933,10 +936,10 @@ function render(rows, sigs) {
         '</div><div class="kv">' +
         '<div><span>入场</span><b onclick="editPos(\'' + r.sym + '\')">' + f(p.entry) + ' ✏️</b></div>' +
         '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
-        (p.alt
+        (isAlt
           ? '<div><span>已持有</span><b>' + heldDays(p, p.dir === "S") + '</b></div>' +
             '<div><span>策略</span><b style="color:' + (p.dir === "S" ? "#4fe0a8" : "#f0be5a") + '">' +
-              (p.dir === "S" ? "做空·持20天不设止损" : "自定义做多") + '</b></div>'
+              ((p.dir === "S" ? "做空·持20天不设止损" : "自定义做多")) + '</b></div>'
           : '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
@@ -946,8 +949,8 @@ function render(rows, sigs) {
         '<div><span>价格变动</span><b>' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
-        (p.alt
-          ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
+        (isAlt
+          ? '<div style=""font-size:11.5px;color:#5f6779;margin-top:8px">' +
 
             (function(){
               let extra = "";
@@ -986,9 +989,9 @@ function render(rows, sigs) {
           ? '<div class="warn" style="background:#1a0f11;border-color:#5c2028;color:#ff9aa6">🚪 ' +
             info.closeReason + ' → 现在平仓</div>' +
             '<div class="acts"><a class="p" style="background:#e8484f;color:#fff" onclick="closePos(\'' + r.sym + '\')">我已平仓</a></div>'
-          : (info.moved
+          : (!isAlt && info.moved
             ? '<div class="acts"><a class="p" onclick="applySl(\'' + r.sym + '\')">✅ 已在币安改好止损</a></div>'
-            : (p.alt ? '' : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>'))) +
+            : (isAlt ? '' : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>'))) +
         '</div>';
       // 记录待更新的止损
       p._newSl = info.sl;
