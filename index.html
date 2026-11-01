@@ -103,6 +103,12 @@ border-radius:11px;padding:12px 13px;margin-bottom:9px}
 margin-left:auto;font-weight:700}
 .bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
 .bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
+.capbar{display:flex;align-items:center;gap:9px;background:#12151d;border:1px solid #202633;
+border-radius:13px;padding:12px 15px;margin-bottom:14px;cursor:pointer}
+.capbar span{font-size:12.5px;color:#5f6779}
+.capbar b{font-size:16px;color:#fff;font-variant-numeric:tabular-nums}
+.caphint{margin-left:auto;font-size:11.5px;color:#4a5162!important}
+.capedit{font-size:14px}
 .mmseg{display:flex;gap:8px}
 .mmseg button{flex:1;padding:11px;border-radius:10px;border:1px solid #2a3448;background:#0a0c10;
 color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
@@ -120,6 +126,13 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 <body>
 <h1>今日信号</h1>
 <div class="s" id="sub">Donchian 20 · 日线</div>
+
+<div class="capbar" onclick="openCap()">
+  <span>账户权益</span>
+  <b id="cap-val">97.66 U</b>
+  <span class="caphint" id="cap-hint">单笔 5% = 4.88U</span>
+  <span class="capedit">⚙️</span>
+</div>
 
 <button class="btn" id="go" onclick="scanAll()">🔍 检查信号</button>
 <div class="hint" id="hint">每天点一次，30 秒看结果</div>
@@ -165,6 +178,30 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
     <div class="macts">
       <button onclick="aClose()">取消</button>
       <button class="p" onclick="aSave()">确认加仓</button>
+    </div>
+  </div>
+</div>
+
+<!-- 账户余额弹窗 -->
+<div class="modal" id="cmodal">
+  <div class="mbox">
+    <div class="mhead">设置账户权益</div>
+    <div class="mrow">
+      <label>账户总权益（USDT）</label>
+      <input id="c-usd" type="number" step="any" inputmode="decimal" oninput="onCapEdit()">
+    </div>
+    <div class="mrow">
+      <label>单笔风险比例</label>
+      <div class="mmseg">
+        <button id="c-r3" onclick="setRiskPct(0.03)">3%</button>
+        <button id="c-r5" onclick="setRiskPct(0.05)">5%</button>
+        <button id="c-r8" onclick="setRiskPct(0.08)">8%</button>
+      </div>
+    </div>
+    <div class="mmsg" id="c-msg"></div>
+    <div class="macts">
+      <button onclick="cClose()">取消</button>
+      <button class="p" onclick="cSave()">确认</button>
     </div>
   </div>
 </div>
@@ -602,6 +639,7 @@ function render(rows, sigs) {
   });
 
   $("out").innerHTML = h;
+  refreshCapBar();
 
   // 山寨币风险/观察名单（异步加载，不阻塞主流程）
   renderAlts();
@@ -635,7 +673,7 @@ async function renderAlts() {
       '<b>做法：1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b><br>' +
       '价格涨 100% 自动爆仓，亏损正好封在 5% 本金</div>';
     shorts.forEach(a => {
-      const posUsd = Math.max(CFG.CAPITAL * 0.05, MIN_NOTIONAL);   // 不能低于币安最小下单额
+      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);   // 按账户余额与风险比例算，不低于下单下限
       const qty = posUsd / a.price;
       const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
       h += '<div class="scard">' +
@@ -716,6 +754,82 @@ function onEntryEdit() {
   const stop = _editing.dir === "L" ? e - CFG.K_SL * _editing.atr : e + CFG.K_SL * _editing.atr;
   $("m-stop").value = stop.toFixed(stop >= 1000 ? 1 : stop >= 1 ? 3 : 5);
   updateModalMsg();
+}
+
+/* ============ 账户余额 ============ */
+function loadCap() {
+  try {
+    const v = parseFloat(localStorage.getItem("capital"));
+    if (isFinite(v) && v > 0) CFG.CAPITAL = v;
+    const r = parseFloat(localStorage.getItem("riskpct"));
+    if (isFinite(r) && r > 0 && r <= 0.5) CFG.RISK = r;
+  } catch (e) {}
+}
+
+function refreshCapBar() {
+  const el = $("cap-val"), h = $("cap-hint");
+  if (!el) return;
+  el.textContent = CFG.CAPITAL.toFixed(2) + " U";
+  const raw = CFG.CAPITAL * CFG.RISK;
+  const use = Math.max(raw, MIN_NOTIONAL);
+  h.innerHTML = "单笔 " + (CFG.RISK * 100) + "% = " + raw.toFixed(2) + "U" +
+    (use > raw + 0.001 ? " → 按下限 " + use.toFixed(2) + "U" : "");
+}
+
+function openCap() {
+  $("c-usd").value = CFG.CAPITAL.toFixed(2);
+  setRiskPct(CFG.RISK);
+  onCapEdit();
+  $("cmodal").classList.add("on");
+}
+
+let _tmpRisk = null;
+function setRiskPct(r) {
+  _tmpRisk = r;
+  ["c-r3", "c-r5", "c-r8"].forEach(id => {
+    const b = $(id);
+    if (!b) return;
+    b.classList.toggle("on", Math.abs(r - [0.03, 0.05, 0.08][["c-r3", "c-r5", "c-r8"].indexOf(id)]) < 1e-9);
+  });
+  onCapEdit();
+}
+
+function onCapEdit() {
+  const v = parseFloat($("c-usd").value);
+  const msg = $("c-msg");
+  msg.classList.remove("bad");
+  if (!isFinite(v) || v <= 0) { msg.textContent = "填入余额"; return; }
+  const r = _tmpRisk || CFG.RISK;
+  const raw = v * r;
+  const use = Math.max(raw, MIN_NOTIONAL);
+  msg.innerHTML = "单笔风险 <b>" + raw.toFixed(2) + "U</b>" +
+    (use > raw + 0.001
+      ? "　→　不足币安下限，实际用 <b style='color:#ffc94d'>" + use.toFixed(2) +
+        "U</b>（" + (use / v * 100).toFixed(2) + "%）"
+      : "") +
+    "<br>最多同时 2 仓，总占用 <b>" + (use * 2).toFixed(2) + "U</b>";
+  if (use > raw + 0.001) msg.classList.add("bad");
+}
+
+function cClose() { $("cmodal").classList.remove("on"); _tmpRisk = null; }
+
+function cSave() {
+  const v = parseFloat($("c-usd").value);
+  if (!isFinite(v) || v <= 0) { alert("金额有误"); return; }
+  CFG.CAPITAL = v;
+  if (_tmpRisk) CFG.RISK = _tmpRisk;
+  try {
+    localStorage.setItem("capital", String(CFG.CAPITAL));
+    localStorage.setItem("riskpct", String(CFG.RISK));
+  } catch (e) {}
+  refreshCapBar();
+  cClose();
+  if (window._last) {
+    window._last.sigs.forEach(x => sizePosition(x));
+    render(window._last.rows, window._last.sigs);
+  } else {
+    scanAll();
+  }
 }
 
 /* ============ 调整保证金 / 全仓逐仓 ============ */
@@ -1009,6 +1123,10 @@ function setRisk(v) {
   }
   $("hint").textContent = "已切换到 " + (v * 100) + "% 风险";
 }
+
+loadCap();
+refreshCapBar();
+setTimeout(refreshCapBar, 500);
 
 /* 恢复上次选择的风险档 */
 try {
