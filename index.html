@@ -626,7 +626,15 @@ function render(rows, sigs) {
         ? '<b class="good">' + f(info.sl) + ' ⬆️</b>'
         : '<b>' + f(info.sl) + '</b>';
       // 盈亏金额（U）
-      const pnlUsd = p.qty ? p.qty * r.cur * (info.pnlPct / 100) : 0;
+      // 正确公式：数量 ×（现价 − 入场价）×方向
+      const sign = p.dir === "L" ? 1 : -1;
+      const mg = p.margin || (p.qty * p.entry / (p.lev || 1)) || 0;
+      let pnlUsd = p.qty ? p.qty * (r.cur - p.entry) * sign : 0;
+      const isCross = (p.marginMode || "isolated") === "cross";
+      let liquidated = false;
+      // 逐仓：最多亏光这笔保证金
+      if (!isCross && mg > 0 && pnlUsd < -mg) { pnlUsd = -mg; liquidated = true; }
+      const pnlMarginPct = mg > 0 ? (pnlUsd / mg) * 100 : 0;
       h += '<div class="card hold">' +
         '<div class="top"><span class="sym">' + r.sym + '</span>' +
         '<span class="pill ' + cls + '">' + dirTxt + '</span>' +
@@ -635,7 +643,7 @@ function render(rows, sigs) {
         (r.sig
           ? '<span class="pill ' + r.sig + '" style="font-size:11px">信号持续</span>'
           : '<span class="pill ok" style="font-size:11px">信号已失效</span>') +
-        '<span class="pnl ' + pnlCls + '">' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%' +
+        '<span class="pnl ' + pnlCls + '">' + (pnlMarginPct >= 0 ? "+" : "") + pnlMarginPct.toFixed(1) + '%' +
         ' <span style="font-size:11px;opacity:.75">' + (pnlUsd >= 0 ? "+" : "") + pnlUsd.toFixed(2) + "U</span></span>" +
         '</div><div class="kv">' +
         '<div><span>入场</span><b onclick="editPos(\'' + r.sym + '\')">' + f(p.entry) + ' ✏️</b></div>' +
@@ -647,10 +655,14 @@ function render(rows, sigs) {
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
           (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
+        '<div><span>名义</span><b>' + (p.qty * p.entry).toFixed(2) + 'U</b></div>' +
+        '<div><span>价格涨跌</span><b class="' + (info.pnlPct >= 0 ? "good" : "bad") + '">' +
+          (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
         (p.alt
           ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
+            (liquidated ? "💀 已爆仓　" : "") +
             (function(){
               let extra = "";
               try {
@@ -659,8 +671,10 @@ function render(rows, sigs) {
                 const left = Math.max(0, 20 - d);
                 extra = left > 0 ? "，还剩 " + left + " 天" : "，已到期可平";
               } catch (e) {}
-              return '山寨做空：不设止损' + extra + '。涨100%自动爆仓，最多亏 ' +
-                (p.margin ? p.margin.toFixed(2) : '—') + 'U';
+              const lv = p.lev || 1;
+              const boom = Math.round(100 / lv);
+              return "山寨做空：不设止损" + extra + "。涨 " + boom + "% 爆仓，最多亏 " +
+                (p.margin ? p.margin.toFixed(2) : '—') + "U";
             })() + '</div>'
           : (r.sig
             ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
@@ -907,8 +921,17 @@ function npCheck() {
   }
   const notional = e * q;
   if (isFinite(m) && m > 0) {
+    const lev = notional / m;
     msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　杠杆 <b style='color:#8ab4ff'>" +
-      (notional / m).toFixed(2) + "x</b>";
+      lev.toFixed(2) + "x</b>";
+    if (lev < 0.99) {
+      msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 名义 " + notional.toFixed(2) +
+        "U 比保证金 " + m.toFixed(2) + "U 还小，数量可能填错了</span>";
+      msg.classList.add("bad");
+    } else if (lev > 125) {
+      msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 杠杆超过 125x，检查一下</span>";
+      msg.classList.add("bad");
+    }
   } else {
     msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　建议保证金 <b class='good'>" +
       notional.toFixed(2) + "U</b>（1x）";
@@ -1043,6 +1066,9 @@ function onMarginEdit() {
   const lev = notional / usd;
   msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　→　杠杆 <b style='color:#8ab4ff'>" +
     lev.toFixed(2) + "x</b>";
+  if (lev < 0.99) {
+    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 保证金比名义还大，说明记录的数量偏小，盈亏会算少</span>";
+  }
   if (_mmMode === "cross") {
     msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 全仓模式下，价格暴涨会吃掉整个账户余额，" +
       "不再是「最多亏这笔」</span>";
