@@ -1805,8 +1805,11 @@ function refreshCapBar() {
     try { return Object.keys(localStorage).some(k => k.indexOf("pos_") === 0); } catch (e) { return false; }
   })();
   if (!_scannedOnce && hasPos) {
-    el.textContent = "…";
-    h.innerHTML = "正在获取持仓价格，稍候";
+    // 余额是你自己填的，永远要显示；只有浮动盈亏未知
+    el.textContent = BASE_CAP.toFixed(2) + " U";
+    const raw0 = BASE_CAP * CFG.RISK;
+    h.innerHTML = "单笔 " + (CFG.RISK * 100) + "% = " + raw0.toFixed(2) + "U" +
+      "　<span style='color:#5f6779'>浮动盈亏计算中…</span>";
     return;
   }
   const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
