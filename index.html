@@ -94,7 +94,7 @@ color:#8b93a6;font-size:15px;font-weight:600;font-family:inherit}
 .aline b.good{color:#19c07a}
 .levrow{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap}
 .levlabel{font-size:11.5px;color:#5f6779;margin-right:2px}
-.levbtn{flex:1;min-width:44px;padding:8px 4px;border-radius:9px;border:1px solid #2a3448;
+.levbtn{flex:1;min-width:36px;padding:8px 2px;border-radius:9px;border:1px solid #2a3448;
 background:#0a0c10;color:#7d8699;font-size:13px;font-weight:600;font-family:inherit}
 .levbtn.on{border-color:#8ab4ff;background:#16224a;color:#8ab4ff}
 .levbtn.dis{opacity:.3}
@@ -181,7 +181,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.4 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.5 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -393,6 +393,8 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
         <button id="c-lv2" onclick="setLevFixed(2)">2x</button>
         <button id="c-lv3" onclick="setLevFixed(3)">3x</button>
         <button id="c-lv5" onclick="setLevFixed(5)">5x</button>
+        <button id="c-lv10" onclick="setLevFixed(10)">10x</button>
+        <button id="c-lv30" onclick="setLevFixed(30)">30x</button>
       </div>
     </div>
     <div class="mrow">
@@ -446,7 +448,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.4";   // 页面版本，用来判断是不是旧缓存
+const VER = "v3.5";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -454,7 +456,7 @@ const CFG = {
   M_TRAIL: 3.0,     // 移动止损 ATR 倍数（吊灯）
   RISK: 0.08,       // 单笔风险（8% 对应「能接受50%回撤」）
   MAX_POS: 2,       // 最多同时持仓
-  MAX_LEV: 10,      // 杠杆上限（自动模式下用来封顶）
+  MAX_LEV: 30,      // 杠杆上限（自动模式下用来封顶）
   LEV_FIXED: 0,     // 自定义杠杆：0=自动，也可设 1/2/3/5...
   CAPITAL: 97.66,   // 本金 USDT
   COINS: ["SOL","DOGE","BNB","ADA","BTC","ETH"]
@@ -951,9 +953,14 @@ function buildHoldCards(list, title) {
             ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
               (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
             : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>')) +
+        ((p.lev || 1) >= 10
+          ? '<div style="font-size:11.5px;color:#ff9aa6;margin-top:8px">⚠️ ' +
+            (p.lev) + 'x：反向 ' + (100 / p.lev).toFixed(2) + '% 就爆仓' +
+            (p.lev >= 20 ? '（这个距离比很多币的一根小时线还小）' : '') + '</div>'
+          : '') +
         '<div class="levrow">' +
           '<span class="levlabel">杠杆</span>' +
-          [1,2,3,5,10].map(function(L){
+          [1,2,3,5,10,20,30].map(function(L){
             var on = Math.abs((p.lev || 1) - L) < 0.01;
             return '<button class="levbtn' + (on ? ' on' : '') +
               '" onclick="setPosLev(\'' + r.sym + '\',' + L + ')">' + L + 'x</button>';
@@ -1042,7 +1049,7 @@ function render(rows, sigs) {
         (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
         '<div class="levrow" data-sym="' + s.sym + '">' +
           '<span class="levlabel">选杠杆</span>' +
-          [1,2,3,5,10].map(function(L){
+          [1,2,3,5,10,20,30].map(function(L){
             var minL = Math.max(1, Math.ceil(s.notional / CFG.CAPITAL));
             var dis = L < minL;
             return '<button class="levbtn' + (s.lev === L ? ' on' : '') + (dis ? ' dis' : '') +
@@ -1896,10 +1903,10 @@ let _tmpLev = 0;
 function setLevFixed(v) {
   _tmpLev = v;
   $("c-levcustom").value = "";
-  ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5"].forEach((id, i) => {
+  ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5","c-lv10","c-lv30"].forEach((id, i) => {
     const b = $(id);
     if (!b) return;
-    b.classList.toggle("on", Math.abs(v - [0,1,2,3,5][i]) < 1e-9);
+    b.classList.toggle("on", Math.abs(v - [0,1,2,3,5,10,30][i]) < 1e-9);
   });
   onCapEdit();
 }
@@ -1908,7 +1915,7 @@ function onLevCustom() {
   const v = parseFloat($("c-levcustom").value);
   if (isFinite(v) && v > 0) {
     _tmpLev = v;
-    ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5"].forEach(id => { const b=$(id); if(b) b.classList.remove("on"); });
+    ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5","c-lv10","c-lv30"].forEach(id => { const b=$(id); if(b) b.classList.remove("on"); });
   } else {
     setLevFixed(0);
     return;
