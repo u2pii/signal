@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v4
@@ -46,3 +47,9 @@ jobs:
             git commit -m "chore: update alt data"
             git push
           fi
+
+      # GITHUB_TOKEN 推的提交不会触发其他工作流，必须手动踢一下 Pages
+      - name: Trigger pages deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo ${{ github.repository }} || true
