@@ -135,6 +135,17 @@ color:#6b7385;font-size:12.5px;font-weight:600;font-family:inherit}
 .bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
 .bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
 justify-content:space-between;align-items:center}
+.aggmg{background:#0d1015;border:1px solid #2a2f3d;border-radius:11px;padding:11px;margin-bottom:12px}
+.aggmg-t{font-size:11.5px;color:#7d8699;margin-bottom:7px}
+.aggmg .mmseg{display:flex;gap:6px}
+.aggmg .mmseg button{flex:1;padding:8px 2px;border-radius:8px;border:1px solid #2a3448;background:#0a0c10;
+color:#7d8699;font-size:12px;font-weight:600;font-family:inherit}
+.aggmg .mmseg button.on{border-color:#ff6b7d;background:#2a1216;color:#ff9aa6}
+.aggmg-row{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:#7d8699}
+.aggmg-row input{flex:1;background:#0a0c10;border:1px solid #2a3448;border-radius:8px;color:#e2e6f0;
+padding:8px 10px;font-size:13px;font-family:inherit}
+.aggmg-note{font-size:11px;color:#5f6779;margin-top:9px;line-height:1.7}
+.aggmg-note b{color:#ff9aa6}
 .aggwarn{background:#1a0f11;border:1px solid #5c2028;border-radius:9px;padding:9px 11px;
 margin-top:9px;font-size:11.5px;line-height:1.7;color:#ff9aa6}
 .secttl{font-size:12.5px;font-weight:700;margin-bottom:6px}
@@ -183,7 +194,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.6 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.7 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -450,7 +461,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.6";   // 页面版本，用来判断是不是旧缓存
+const VER = "v3.7";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1141,7 +1152,25 @@ async function loadAlts() {
    每张卡片都会带上历史存活率，不隐瞒 */
 
 const AGG_LEV = 10;        // 激进模式固定 10x
-const AGG_MARGIN_PCT = 1.0; // 保证金占比：1.0 = 全部本金
+let AGG_MARGIN_PCT = 1.0;  // 保证金占本金的比例（可调，存本地）
+
+function loadAggMargin() {
+  try {
+    const v = parseFloat(localStorage.getItem("aggmargin"));
+    if (isFinite(v) && v > 0 && v <= 1) AGG_MARGIN_PCT = v;
+  } catch (e) {}
+}
+function setAggMargin(pct) {
+  AGG_MARGIN_PCT = Math.min(Math.max(pct, 0.01), 1);
+  try { localStorage.setItem("aggmargin", String(AGG_MARGIN_PCT)); } catch (e) {}
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+function onAggMarginInput() {
+  const v = parseFloat($("agg-mg").value);
+  if (!isFinite(v) || v <= 0) return;
+  setAggMargin(Math.min(v, 100) / 100);
+}
+loadAggMargin();
 
 function aggSize(price) {
   const capital = CFG.CAPITAL;
@@ -1177,8 +1206,26 @@ function altAggHTML() {
   let h = '<h3>⚡ 激进模式 · ' + (ALT.updated || "") + '</h3>';
 
   h += '<div class="bigcard" style="border-color:#5c2028">';
-  h += '<div class="bchead"><span style="color:#ff6b7d">⚡ 满仓 ' + AGG_LEV + 'x</span>' +
-       '<span style="font-size:11px;color:#5f6779">本金 ' + CFG.CAPITAL.toFixed(0) + 'U 全押</span></div>';
+  h += '<div class="bchead"><span style="color:#ff6b7d">⚡ ' + AGG_LEV + 'x 杠杆</span>' +
+       '<span style="font-size:11px;color:#5f6779">本金 ' + CFG.CAPITAL.toFixed(0) + 'U</span></div>';
+  // 保证金比例选择
+  h += '<div class="aggmg">' +
+    '<div class="aggmg-t">保证金占本金</div>' +
+    '<div class="mmseg">' +
+      [0.10, 0.25, 0.50, 1.0].map(function(v){
+        return '<button class="' + (Math.abs(AGG_MARGIN_PCT - v) < 1e-9 ? "on" : "") +
+          '" onclick="setAggMargin(' + v + ')">' + Math.round(v * 100) + '%</button>';
+      }).join('') +
+    '</div>' +
+    '<div class="aggmg-row"><span>或自定义 %</span>' +
+      '<input id="agg-mg" type="number" step="1" inputmode="numeric" min="1" max="100" ' +
+      'placeholder="' + Math.round(AGG_MARGIN_PCT * 100) + '" oninput="onAggMarginInput()"></div>' +
+    '<div class="aggmg-note">当前每笔保证金 <b>' +
+      (CFG.CAPITAL * AGG_MARGIN_PCT).toFixed(2) + 'U</b>' +
+      '　名义 <b>' + (CFG.CAPITAL * AGG_MARGIN_PCT * AGG_LEV).toFixed(0) + 'U</b>' +
+      '<br>最高全亏 = ' + (CFG.CAPITAL * AGG_MARGIN_PCT).toFixed(2) + 'U（本金的 ' +
+      Math.round(AGG_MARGIN_PCT * 100) + '%）</div>' +
+  '</div>';
   h += '<div class="sectrule" style="border-color:#5c2028;background:#1a0f11;color:#ff9aa6">' +
        '<b>这是你要的模式：10% 波动 = 本金翻倍。</b><br>' +
        '代价：反向 10% 就归零，模拟 20000 次的存活率如下——<br>' +
