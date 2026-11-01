@@ -103,6 +103,13 @@ border-radius:11px;padding:12px 13px;margin-bottom:9px}
 margin-left:auto;font-weight:700}
 .bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
 .bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
+.mmseg{display:flex;gap:8px}
+.mmseg button{flex:1;padding:11px;border-radius:10px;border:1px solid #2a3448;background:#0a0c10;
+color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
+.mmseg button.on{border-color:#19c07a;background:#0d1a14;color:#19c07a}
+.mmbadge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600}
+.mmbadge.iso{background:#0f2e22;color:#4fe0a8}
+.mmbadge.cross{background:#3a1418;color:#ff8fa0}
 .shortwarn{font-size:11.5px;color:#8b6b6b;line-height:1.7;margin-top:8px;padding-left:2px}
 .ft{font-size:11px;color:#3d4352;text-align:center;margin-top:26px;line-height:1.9}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
@@ -158,6 +165,29 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
     <div class="macts">
       <button onclick="aClose()">取消</button>
       <button class="p" onclick="aSave()">确认加仓</button>
+    </div>
+  </div>
+</div>
+
+<!-- 调整保证金弹窗 -->
+<div class="modal" id="mmodal">
+  <div class="mbox">
+    <div class="mhead" id="mm-title">调整保证金</div>
+    <div class="mrow">
+      <label>保证金金额（USDT）</label>
+      <input id="mm-usd" type="number" step="any" inputmode="decimal" oninput="onMarginEdit()">
+    </div>
+    <div class="mrow">
+      <label>保证金模式</label>
+      <div class="mmseg">
+        <button id="mm-iso" class="on" onclick="setMode('isolated')">逐仓</button>
+        <button id="mm-cross" onclick="setMode('cross')">全仓</button>
+      </div>
+    </div>
+    <div class="mmsg" id="mm-msg"></div>
+    <div class="macts">
+      <button onclick="mmClose()">取消</button>
+      <button class="p" onclick="mmSave()">确认</button>
     </div>
   </div>
 </div>
@@ -505,6 +535,8 @@ function render(rows, sigs) {
       h += '<div class="card hold">' +
         '<div class="top"><span class="sym">' + r.sym + '</span>' +
         '<span class="pill ' + cls + '">' + dirTxt + '</span>' +
+        '<span class="mmbadge ' + ((p.marginMode || 'isolated') === 'cross' ? 'cross' : 'iso') + '">' +
+          ((p.marginMode || 'isolated') === 'cross' ? '全仓' : '逐仓') + '</span>' +
         (r.sig
           ? '<span class="pill ' + r.sig + '" style="font-size:11px">信号持续</span>'
           : '<span class="pill ok" style="font-size:11px">信号已失效</span>') +
@@ -515,7 +547,8 @@ function render(rows, sigs) {
         '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
         '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
         '<div><span>新止损</span>' + slTxt + '</div>' +
-        '<div><span>保证金</span><b>' + (p.margin ? p.margin.toFixed(2) + 'U' : '—') + '</b></div>' +
+        '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
+          (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
         (r.sig
@@ -685,6 +718,64 @@ function onEntryEdit() {
   updateModalMsg();
 }
 
+/* ============ 调整保证金 / 全仓逐仓 ============ */
+let _mmSym = null, _mmMode = "isolated";
+
+function openMargin(sym) {
+  const p = loadPos(sym);
+  if (!p) return;
+  _mmSym = sym;
+  _mmMode = p.marginMode || "isolated";
+  $("mm-title").textContent = "调整 " + sym + " 保证金";
+  const cur = p.margin || (p.qty * p.entry / (p.lev || 1));
+  $("mm-usd").value = cur.toFixed(2);
+  setMode(_mmMode);
+  onMarginEdit();
+  $("mmodal").classList.add("on");
+}
+
+function setMode(m) {
+  _mmMode = m;
+  $("mm-iso").classList.toggle("on", m === "isolated");
+  $("mm-cross").classList.toggle("on", m === "cross");
+  onMarginEdit();
+}
+
+function onMarginEdit() {
+  if (!_mmSym) return;
+  const p = loadPos(_mmSym);
+  const usd = parseFloat($("mm-usd").value);
+  const msg = $("mm-msg");
+  msg.classList.remove("bad");
+  if (!isFinite(usd) || usd <= 0) { msg.textContent = "填入保证金金额"; return; }
+  const notional = p.qty * p.entry;
+  const lev = notional / usd;
+  msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　→　杠杆 <b style='color:#8ab4ff'>" +
+    lev.toFixed(2) + "x</b>";
+  if (_mmMode === "cross") {
+    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 全仓模式下，价格暴涨会吃掉整个账户余额，" +
+      "不再是「最多亏这笔」</span>";
+    msg.classList.add("bad");
+  } else {
+    msg.innerHTML += "<br><span style='color:#4fe0a8'>逐仓：最多亏光这笔保证金</span>";
+  }
+}
+
+function mmClose() { $("mmodal").classList.remove("on"); _mmSym = null; }
+
+function mmSave() {
+  if (!_mmSym) return;
+  const usd = parseFloat($("mm-usd").value);
+  if (!isFinite(usd) || usd <= 0) { alert("金额有误"); return; }
+  const p = loadPos(_mmSym);
+  p.margin = usd;
+  p.marginMode = _mmMode;
+  p.lev = p.qty * p.entry / usd;
+  savePos(_mmSym, p);
+  mmClose();
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+
 /* ============ 加仓（分批建仓） ============ */
 let _adding = null;
 
@@ -820,6 +911,7 @@ function modalSave() {
     qty: old ? old.qty : +(CFG.CAPITAL * CFG.RISK / Math.abs(e - s)).toFixed(6),
     lev: old ? old.lev : 1,
     margin: old ? (old.margin || old.qty * old.entry / (old.lev || 1)) : (CFG.CAPITAL * CFG.RISK),
+    marginMode: old ? (old.marginMode || "isolated") : "isolated",
     date: old ? old.date : new Date().toISOString().slice(0, 10),
     edited: _editing.mode === "edit" ? true : undefined,
   });
@@ -833,7 +925,7 @@ function markAlt(sym, price, usd, qty, el) {
   if (!confirm("确认已在币安开好 " + sym + " 的空单？\n\n仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
   savePos(sym, {
     dir: "S", entry: price, sl: price * 2, ext: price,
-    qty: parseFloat(qty), lev: 1, margin: usd,
+    qty: parseFloat(qty), lev: 1, margin: usd, marginMode: "isolated",
     date: new Date().toISOString().slice(0, 10),
     alt: true,
   });
