@@ -4,6 +4,7 @@
 """
 import json, os, sys, time, urllib.request, urllib.error, statistics
 from datetime import datetime, timezone, timedelta
+from pump_score import pump_features, score_universe
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "alt_watch.json")
@@ -164,6 +165,56 @@ def fetch_market_structure():
         out[sym] = item
     print(f"  市场结构 {len(out)} 条", file=sys.stderr)
     return out
+
+
+def build_hot_cold(rows):
+    """把扫描到的币分成「可能暴涨」和「可能暴跌」两组
+
+    依据 analyze_prepump.py 的研究（70991 日样本 / 474 暴涨日）：
+      综合评分前 1% 的暴涨率 8.32%，是基础率(0.668%)的 12.5 倍
+      样本内外稳定在 6 倍左右
+    """
+    items = []
+    for m in rows:
+        bars = m.get("bars")
+        if not bars:
+            continue
+        f = pump_features(bars)
+        if not f:
+            continue
+        items.append({"sym": m["sym"], "symbol": m["symbol"],
+                      "price": m["cur"], "feat": f,
+                      "chg24": m.get("chg24", 0),
+                      "max_day": m.get("max_day", 0),
+                      "prior20": m.get("prior20", 0),
+                      "qv": m.get("qv", 0)})
+    score_universe(items)
+
+    hot, cold = [], []
+    for x in items:
+        f = x["feat"]
+        # 已经暴涨过的 → 划到「可能暴跌」
+        pumped = (x["max_day"] >= 0.30) or (x["prior20"] >= 1.0) or (f["r5"] >= 0.40)
+        rec = {
+            "sym": x["sym"], "price": x["price"],
+            "score": x["score"],
+            "chg24": round(x["chg24"] * 100, 2),
+            "r5": round(f["r5"] * 100, 1),
+            "r20": round(f["r20"] * 100, 1),
+            "amp": round(f["amp"] * 100, 1),
+            "gap": round(f["gap"] * 100, 1),
+            "vr5": round(f["vr5"], 2),
+            "atrc": round(f["atrc"], 2),
+            "to_hi": round(f["to_hi"] * 100, 1),
+            "qv": round(x["qv"] / 10000, 0),
+        }
+        if pumped:
+            cold.append(rec)
+        else:
+            hot.append(rec)
+    hot.sort(key=lambda x: -x["score"])
+    cold.sort(key=lambda x: -x["score"])
+    return hot[:12], cold[:12]
 
 
 def pullback_setups(rows, min_pump=0.30, min_drop=0.15, max_drop=0.55,
@@ -370,9 +421,11 @@ def main():
     losers.reverse()
 
     pbs = pullback_setups(rows)
+    hot, cold = build_hot_cold(rows)
 
     payload = {"updated":datetime.now(TZ).strftime("%Y-%m-%d %H:%M"),"source":"binance-futures",
                "scanned":len(rows),"short":shorts[:10],"pullback":pbs[:10],
+               "hot":hot,"cold":cold,
                "gainers":gainers,"losers":losers,
                "crowded":[cslim(m) for m in crowded[:10]],
                "risky":[slim(m) for m in risky[:15]],"watch":[slim(m) for m in watch[:15]],
@@ -383,6 +436,16 @@ def main():
     print("--- 做空信号 ---")
     for s in shorts[:10]:
         print(f"  {s['sym']:<10} {s['symbol']:<14} 暴涨{s['pump_pct']:>6.1f}%  现价{s['price']:<12} 前20日{s['prior20']:>7.1f}%  量能{s['vol_ratio']:>6.2f}x")
+    print("\n--- 可能暴涨（评分前 12，未验证）---")
+    for m in hot[:8]:
+        print(f"  {m['sym']:<10} 评分{m['score']:>5.1f}  5日{m['r5']:>+7.1f}%  "
+              f"振幅{m['amp']:>5.1f}%  量比{m['vr5']:>4.2f}  ATR扩张{m['atrc']:>4.2f}")
+
+    print("\n--- 可能暴跌（已暴涨，评分前 12）---")
+    for m in cold[:8]:
+        print(f"  {m['sym']:<10} 评分{m['score']:>5.1f}  5日{m['r5']:>+7.1f}%  "
+              f"20日{m['r20']:>+7.1f}%  距高点{m['to_hi']:>+6.1f}%")
+
     print("\n--- 回踩回升（做多观察，未验证）---")
     if not pbs:
         print("  （无）")
