@@ -136,7 +136,7 @@ def fetch_market_structure():
     except Exception as e:
         print("  资金费率失败:", str(e)[:40], file=sys.stderr)
 
-    for sym in set(list(fut.keys()) | set(fund.keys())):
+    for sym in set(fut) | set(fund):
         f = fut.get(sym)
         s = spot.get(sym)
         fd = fund.get(sym)
