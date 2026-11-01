@@ -94,6 +94,77 @@ def watch_score(m):
     elif m["amp"] >= 0.05: s += 8
     return min(s, 100)
 
+def fetch_market_structure():
+    """采集币安现货+合约的成交额、基差、资金费率
+       返回 {symbol: {spot_vol, fut_vol, basis, funding, mark, spot}}
+    """
+    out = {}
+    # 1) 现货 24h
+    spot = {}
+    try:
+        for t in get_json("/api/v3/ticker/24hr"):
+            try:
+                spot[t["symbol"]] = {"price": float(t["lastPrice"]), "qv": float(t["quoteVolume"])}
+            except Exception:
+                pass
+    except Exception as e:
+        print("  现货行情失败:", str(e)[:40], file=sys.stderr)
+
+    # 2) 合约 24h
+    fut = {}
+    try:
+        for t in get_json("/fapi/v1/ticker/24hr"):
+            try:
+                fut[t["symbol"]] = {"price": float(t["lastPrice"]), "qv": float(t["quoteVolume"])}
+            except Exception:
+                pass
+    except Exception as e:
+        print("  合约行情失败:", str(e)[:40], file=sys.stderr)
+
+    # 3) 资金费率 + 标记价/指数价
+    fund = {}
+    try:
+        for p in get_json("/fapi/v1/premiumIndex"):
+            try:
+                fund[p["symbol"]] = {
+                    "funding": float(p.get("lastFundingRate") or 0),
+                    "mark": float(p.get("markPrice") or 0),
+                    "index": float(p.get("indexPrice") or 0),
+                }
+            except Exception:
+                pass
+    except Exception as e:
+        print("  资金费率失败:", str(e)[:40], file=sys.stderr)
+
+    for sym in set(list(fut.keys()) | set(fund.keys())):
+        f = fut.get(sym)
+        s = spot.get(sym)
+        fd = fund.get(sym)
+        if not f:
+            continue
+        item = {
+            "fut_vol": f["qv"],
+            "spot_vol": s["qv"] if s else 0,
+            "fut_price": f["price"],
+            "spot_price": s["price"] if s else 0,
+            "funding": fd["funding"] if fd else None,
+            "mark": fd["mark"] if fd else f["price"],
+            "index": fd["index"] if fd else 0,
+        }
+        # 基差：标记价 vs 现货
+        if item["spot_price"] > 0 and item["mark"] > 0:
+            item["basis"] = item["mark"] / item["spot_price"] - 1
+        elif item["index"] > 0 and item["mark"] > 0:
+            item["basis"] = item["mark"] / item["index"] - 1
+        else:
+            item["basis"] = None
+        # 成交额倍数
+        item["vol_mult"] = (item["fut_vol"] / item["spot_vol"]) if item["spot_vol"] > 0 else None
+        out[sym] = item
+    print(f"  市场结构 {len(out)} 条", file=sys.stderr)
+    return out
+
+
 def main():
     print("拉取币安合约列表...", flush=True)
     info = get_json("/fapi/v1/exchangeInfo")
@@ -135,6 +206,24 @@ def main():
         time.sleep(0.06)
     print(f"有效 {len(rows)}\n")
 
+    print("采集市场结构（基差/资金费率/现货合约比）...", flush=True)
+    mkt = fetch_market_structure()
+
+    # 把市场结构挂到每个币上
+    for m in rows:
+        st = mkt.get(m["symbol"], {})
+        m["basis"] = st.get("basis")
+        m["funding"] = st.get("funding")
+        m["vol_mult"] = st.get("vol_mult")
+        m["spot_vol"] = st.get("spot_vol", 0)
+        # 空头拥挤：合约大幅贴水 + 资金费率趴在低位
+        crowded = False
+        if m["basis"] is not None and m["basis"] < -0.05:
+            crowded = True
+        if m["basis"] is not None and m["basis"] < -0.03 and m["funding"] is not None and m["funding"] < 0.0002:
+            crowded = True
+        m["crowded"] = crowded
+
     shorts = []
     for m in rows:
         bars = m["bars"]; hit = None
@@ -148,10 +237,23 @@ def main():
                 hit = {"pct":r*100,"date":datetime.fromtimestamp(bars[idx]["t"],TZ).strftime("%m-%d"),"days_ago":k-1}
                 break
         if not hit: continue
+        # ===== 空头陷阱过滤 =====
+        # 1) 合约大幅贴水 → 空头已经拥挤
+        # 2) 合约成交额远大于现货 → 纯杠杆对赌，易插针
+        skip_reason = None
+        if m.get("basis") is not None and m["basis"] < -0.05:
+            skip_reason = "合约贴水 %.1f%%，空头已拥挤" % (m["basis"] * 100)
+        elif m.get("vol_mult") is not None and m["vol_mult"] > 20:
+            skip_reason = "合约/现货成交额 %.0f 倍，纯杠杆对赌" % m["vol_mult"]
+        if skip_reason:
+            print(f"  跳过 {m['sym']}：{skip_reason}", file=sys.stderr)
+            continue
         shorts.append({"sym":m["sym"],"symbol":m["symbol"],"price":m["cur"],
                        "pump_pct":round(hit["pct"],1),"pump_date":hit["date"],"days_ago":hit["days_ago"],
                        "prior20":round(m["prior20"]*100,1),"vol_ratio":round(m["vol_ratio"],2),
-                       "qv":round(m["qv"]/10000,0),"risk":m["risk"]})
+                       "qv":round(m["qv"]/10000,0),"risk":m["risk"],
+                       "basis":(round(m["basis"]*100,2) if m.get("basis") is not None else None),
+                       "vol_mult":(round(m["vol_mult"],1) if m.get("vol_mult") is not None else None)})
     shorts.sort(key=lambda x: -x["pump_pct"])
 
     risky = [m for m in rows if m["risk"] >= 55 and m["max_day"] >= 0.20]
@@ -166,16 +268,35 @@ def main():
                 "drawdown5":round(m["drawdown5"]*100,1),"amp":round(m["amp"]*100,1),
                 "qv":round(m["qv"]/10000,0),"risk":m["risk"],"watch":m["watch"]}
 
+    # ===== 空头拥挤预警（可能继续挤压上涨，不建议做空）=====
+    crowded = [m for m in rows if m.get("crowded")]
+    crowded.sort(key=lambda x: -x["max_day"])
+    def cslim(m):
+        d = slim(m)
+        d["basis"] = round(m["basis"] * 100, 2) if m.get("basis") is not None else None
+        d["funding"] = round(m["funding"] * 100, 4) if m.get("funding") is not None else None
+        d["vol_mult"] = round(m["vol_mult"], 1) if m.get("vol_mult") is not None else None
+        return d
+
     payload = {"updated":datetime.now(TZ).strftime("%Y-%m-%d %H:%M"),"source":"binance-futures",
                "scanned":len(rows),"short":shorts[:10],
+               "crowded":[cslim(m) for m in crowded[:10]],
                "risky":[slim(m) for m in risky[:15]],"watch":[slim(m) for m in watch[:15]],
-               "note":"价格与K线均来自币安U本位永续合约。做空规则：1x、不挂止损、持有20天、每笔5%本金。"}
+               "note":"价格与K线均来自币安U本位永续合约。做空规则：1x、不挂止损、持有20天、每笔5%本金。已自动排除合约贴水>5%或合约/现货成交额>20倍的标的（空头陷阱）。"}
     json.dump(payload, open(OUT,"w",encoding="utf-8"), ensure_ascii=False, indent=1)
 
     print(f"做空信号 {len(shorts)} / 风险 {len(risky)} / 观察 {len(watch)}\n")
     print("--- 做空信号 ---")
     for s in shorts[:10]:
         print(f"  {s['sym']:<10} {s['symbol']:<14} 暴涨{s['pump_pct']:>6.1f}%  现价{s['price']:<12} 前20日{s['prior20']:>7.1f}%  量能{s['vol_ratio']:>6.2f}x")
+    print("\n--- 空头拥挤预警（别做空，可能继续挤）---")
+    for m in crowded[:6]:
+        b = f"{m['basis']*100:+.1f}%" if m.get("basis") is not None else "—"
+        f = f"{m['funding']*100:+.3f}%" if m.get("funding") is not None else "—"
+        v = f"{m['vol_mult']:.0f}x" if m.get("vol_mult") is not None else "—"
+        print(f"  {m['sym']:<10} 现价{m['cur']:<12} 日涨{m['max_day']*100:>6.1f}%  "
+              f"基差{b:>7}  费率{f:>8}  合约/现货{v:>6}")
+
     print("\n--- 风险名单 ---")
     for m in risky[:6]:
         print(f"  {m['sym']:<10} 风险{m['risk']:>3}  日涨{m['max_day']*100:>6.1f}%  20日{m['prior20']*100:>7.1f}%  现价{m['cur']}")
