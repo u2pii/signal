@@ -42,7 +42,14 @@ font-size:14px;font-weight:600;border:1px solid #1e3a28;text-align:center;cursor
   <div class="card">
     <div class="tok" id="tok">--------</div>
     <div class="tdate" id="tdate"></div>
-    <div class="copy" onclick="copyTok()">📋 复制口令</div>
+    <div class="copy" onclick="copyTok()">📋 复制今日口令</div>
+  </div>
+
+  <div class="card" style="border-color:#2a3448">
+    <div style="font-size:11.5px;color:#5f6779;margin-bottom:8px">30 天邀请码（给信任的朋友，不用每天发）</div>
+    <div class="tok" id="inv" style="font-size:26px;color:#8ab4ff">--------</div>
+    <div class="tdate">有效期 30 天，泄露了改主密码即可作废</div>
+    <div class="copy" style="background:#16224a;color:#8ab4ff;border-color:#2a3448" onclick="copyInv()">📋 复制邀请码</div>
   </div>
   <div class="hint">
     口令每天 0 点（北京时间）自动更换，昨天生成的仍可用 1 天。<br>
@@ -56,7 +63,7 @@ font-size:14px;font-weight:600;border:1px solid #1e3a28;text-align:center;cursor
 <script>
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ROUNDS = 20000;
-let TOKEN = "";
+let TOKEN = "", INV = "";
 
 async function sha256(str) {
   const buf = new TextEncoder().encode(str);
@@ -91,13 +98,23 @@ async function unlock() {
   try {
     const today = bjDate(0);
     TOKEN = await makeToken(pw, today);
+    INV = await makeToken(pw, "INVITE30");
     document.getElementById("tok").textContent = TOKEN;
+    document.getElementById("inv").textContent = INV;
     document.getElementById("tdate").textContent = "有效期 " + today + "（含昨天）";
     document.getElementById("gate").style.display = "none";
     document.getElementById("out").style.display = "";
   } catch (e) {
     err.textContent = "出错：" + e.message;
   }
+}
+
+function copyInv() {
+  if (!INV) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(INV).then(() => alert("已复制邀请码：" + INV))
+      .catch(() => prompt("手动复制", INV));
+  } else { prompt("手动复制", INV); }
 }
 
 function copyTok() {
