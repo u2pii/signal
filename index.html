@@ -348,6 +348,21 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
         <button id="c-r8" onclick="setRiskPct(0.08)">8%</button>
       </div>
     </div>
+    <div class="mrow">
+      <label>杠杆（自动 = 刚好够用）</label>
+      <div class="mmseg" id="c-levrow">
+        <button id="c-lv0" onclick="setLevFixed(0)">自动</button>
+        <button id="c-lv1" onclick="setLevFixed(1)">1x</button>
+        <button id="c-lv2" onclick="setLevFixed(2)">2x</button>
+        <button id="c-lv3" onclick="setLevFixed(3)">3x</button>
+        <button id="c-lv5" onclick="setLevFixed(5)">5x</button>
+      </div>
+    </div>
+    <div class="mrow">
+      <label>或自定义（1~125）</label>
+      <input id="c-levcustom" type="number" step="1" inputmode="numeric" placeholder="留空 = 用上面的选择"
+             oninput="onLevCustom()">
+    </div>
     <div class="mmsg" id="c-msg"></div>
     <div class="macts">
       <button onclick="cClose()">取消</button>
@@ -395,7 +410,8 @@ const CFG = {
   M_TRAIL: 3.0,     // 移动止损 ATR 倍数（吊灯）
   RISK: 0.08,       // 单笔风险（8% 对应「能接受50%回撤」）
   MAX_POS: 2,       // 最多同时持仓
-  MAX_LEV: 10,      // 杠杆上限
+  MAX_LEV: 10,      // 杠杆上限（自动模式下用来封顶）
+  LEV_FIXED: 0,     // 自定义杠杆：0=自动，也可设 1/2/3/5...
   CAPITAL: 97.66,   // 本金 USDT
   COINS: ["SOL","DOGE","BNB","ADA","BTC","ETH"]
 };
@@ -685,10 +701,18 @@ function sizePosition(s) {
   const maxNotional = cap * CFG.MAX_LEV;
   if (notional > maxNotional) notional = maxNotional;   // 不超过杠杆上限
 
-  // 整数杠杆：只需覆盖这个名义（杠杆是上限，不用满）
-  let lev = Math.ceil(notional / cap);
-  if (!isFinite(lev) || lev < 1) lev = 1;
-  if (lev > CFG.MAX_LEV) lev = CFG.MAX_LEV;
+  // 杠杆：自定义优先，否则取「刚好覆盖名义」的最小整数倍
+  let lev;
+  if (CFG.LEV_FIXED > 0) {
+    lev = CFG.LEV_FIXED;
+    // 固定杠杆下，保证金不能超过本金 → 名义上限 = 本金 × 杠杆
+    const hardCap = cap * lev;
+    if (notional > hardCap) notional = hardCap;
+  } else {
+    lev = Math.ceil(notional / cap);
+    if (!isFinite(lev) || lev < 1) lev = 1;
+    if (lev > CFG.MAX_LEV) lev = CFG.MAX_LEV;
+  }
 
   // 按币安最小变动单位向下取整
   const step = STEP[s.sym] || 0.001;
@@ -1431,6 +1455,8 @@ function loadCap() {
     if (isFinite(v) && v > 0) { CFG.CAPITAL = v; BASE_CAP = v; }
     const r = parseFloat(localStorage.getItem("riskpct"));
     if (isFinite(r) && r > 0 && r <= 0.5) CFG.RISK = r;
+    const lv = parseFloat(localStorage.getItem("levfixed"));
+    if (isFinite(lv) && lv >= 0 && lv <= 125) CFG.LEV_FIXED = lv;
   } catch (e) {}
 }
 
@@ -1465,6 +1491,7 @@ function refreshCapBar() {
 function openCap() {
   $("c-usd").value = CFG.CAPITAL.toFixed(2);
   setRiskPct(CFG.RISK);
+  setLevFixed(CFG.LEV_FIXED || 0);
   onCapEdit();
   $("cmodal").classList.add("on");
 }
@@ -1480,6 +1507,31 @@ function setRiskPct(r) {
   onCapEdit();
 }
 
+let _tmpLev = 0;
+
+function setLevFixed(v) {
+  _tmpLev = v;
+  $("c-levcustom").value = "";
+  ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5"].forEach((id, i) => {
+    const b = $(id);
+    if (!b) return;
+    b.classList.toggle("on", Math.abs(v - [0,1,2,3,5][i]) < 1e-9);
+  });
+  onCapEdit();
+}
+
+function onLevCustom() {
+  const v = parseFloat($("c-levcustom").value);
+  if (isFinite(v) && v > 0) {
+    _tmpLev = v;
+    ["c-lv0","c-lv1","c-lv2","c-lv3","c-lv5"].forEach(id => { const b=$(id); if(b) b.classList.remove("on"); });
+  } else {
+    setLevFixed(0);
+    return;
+  }
+  onCapEdit();
+}
+
 function onCapEdit() {
   const v = parseFloat($("c-usd").value);
   const msg = $("c-msg");
@@ -1488,7 +1540,10 @@ function onCapEdit() {
   const r = _tmpRisk || CFG.RISK;
   const raw = v * r;
   const use = Math.max(raw, MIN_NOTIONAL);
-  msg.innerHTML = "单笔风险 <b>" + raw.toFixed(2) + "U</b>" +
+  const lvNow = _tmpLev || CFG.LEV_FIXED || 0;
+  const lvTxt = lvNow > 0 ? ("<b style='color:#8ab4ff'>" + lvNow + "x</b>（自定义）")
+                          : "自动";
+  msg.innerHTML = "杠杆 " + lvTxt + "　单笔风险 <b>" + raw.toFixed(2) + "U</b>" +
     (use > raw + 0.001
       ? "　→　不足币安下限，实际用 <b style='color:#ffc94d'>" + use.toFixed(2) +
         "U</b>（" + (use / v * 100).toFixed(2) + "%）"
@@ -1505,9 +1560,11 @@ function cSave() {
   BASE_CAP = v;
   CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
   if (_tmpRisk) CFG.RISK = _tmpRisk;
+  CFG.LEV_FIXED = _tmpLev || 0;
   try {
     localStorage.setItem("capital", String(BASE_CAP));
     localStorage.setItem("riskpct", String(CFG.RISK));
+    localStorage.setItem("levfixed", String(CFG.LEV_FIXED));
   } catch (e) {}
   refreshCapBar();
   cClose();
