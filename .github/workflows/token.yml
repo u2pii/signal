@@ -37,6 +37,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "no change"
           else
-            git commit -m "chore: rotate token [skip ci]"
+            git commit -m "chore: rotate token"
             git push
           fi
