@@ -435,8 +435,19 @@ function closePos(sym) {
   }
   if (!confirm("确认平掉 / 删除 " + sym + " 这条记录？" + info +
                "\n\n（只删 App 里的记录，不影响你在币安的实际持仓）")) return;
+  // 把已实现盈亏结算进基准余额
+  if (r) {
+    const sign2 = p.dir === "L" ? 1 : -1;
+    const mg2 = p.margin || (p.qty * p.entry / (p.lev || 1));
+    let realized = p.qty * (r.cur - p.entry) * sign2;
+    if ((p.marginMode || "isolated") !== "cross" && mg2 > 0 && realized < -mg2) realized = -mg2;
+    BASE_CAP = Math.max(BASE_CAP + realized, 0.01);
+    try { localStorage.setItem("capital", String(BASE_CAP)); } catch (e) {}
+    alert("已结算：" + (realized >= 0 ? "+" : "") + realized.toFixed(2) + "U\n基准余额 → " + BASE_CAP.toFixed(2) + "U");
+  }
   del(sym);
   if (window._last) render(window._last.rows, window._last.sigs);
+  refreshCapBar();
 }
 
 function resetAll() {
@@ -479,6 +490,21 @@ async function scanAll() {
       return { sym, err: String(e.message || e).slice(0, 40) };
     }
   }));
+
+  // ---- 计算所有持仓的浮动盈亏，得到实时权益 ----
+  FLOAT_PNL = 0;
+  for (const r of rows) {
+    if (r.err) continue;
+    const pp = loadPos(r.sym);
+    if (!pp || !pp.qty) continue;
+    const sg = pp.dir === "L" ? 1 : -1;
+    let u = pp.qty * (r.cur - pp.entry) * sg;
+    const mg0 = pp.margin || (pp.qty * pp.entry / (pp.lev || 1));
+    if ((pp.marginMode || "isolated") !== "cross" && mg0 > 0 && u < -mg0) u = -mg0;
+    FLOAT_PNL += u;
+  }
+  // 仓位按「基准 + 浮动」算（复利）
+  CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
 
   // 取信号，按优先级
   const sigs = rows.filter(r => r.sig)
@@ -887,6 +913,8 @@ function heldDays(p) {
 
 /* ============ 手动记录持仓 ============ */
 let _npDir = "S";
+let BASE_CAP = 97.66;        // 用户设定的基准余额（不含浮动盈亏）
+let FLOAT_PNL = 0;           // 当前所有持仓的浮动盈亏
 let _npCur = 0, _npCurSym = "";
 
 async function npFetchPrice(sym) {
@@ -984,7 +1012,7 @@ function npSave() {
 function loadCap() {
   try {
     const v = parseFloat(localStorage.getItem("capital"));
-    if (isFinite(v) && v > 0) CFG.CAPITAL = v;
+    if (isFinite(v) && v > 0) { CFG.CAPITAL = v; BASE_CAP = v; }
     const r = parseFloat(localStorage.getItem("riskpct"));
     if (isFinite(r) && r > 0 && r <= 0.5) CFG.RISK = r;
   } catch (e) {}
@@ -993,11 +1021,18 @@ function loadCap() {
 function refreshCapBar() {
   const el = $("cap-val"), h = $("cap-hint");
   if (!el) return;
-  el.textContent = CFG.CAPITAL.toFixed(2) + " U";
-  const raw = CFG.CAPITAL * CFG.RISK;
+  const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  el.textContent = eq.toFixed(2) + " U";
+  const raw = eq * CFG.RISK;
   const use = Math.max(raw, MIN_NOTIONAL);
+  let extra = "";
+  if (Math.abs(FLOAT_PNL) > 0.005) {
+    extra = "<br>基准 " + BASE_CAP.toFixed(2) + "　浮动 <b style='color:" +
+      (FLOAT_PNL >= 0 ? "#19c07a" : "#ff6b7d") + "'>" +
+      (FLOAT_PNL >= 0 ? "+" : "") + FLOAT_PNL.toFixed(2) + "U</b>";
+  }
   h.innerHTML = "单笔 " + (CFG.RISK * 100) + "% = " + raw.toFixed(2) + "U" +
-    (use > raw + 0.001 ? " → 按下限 " + use.toFixed(2) + "U" : "");
+    (use > raw + 0.001 ? " → 按下限 " + use.toFixed(2) + "U" : "") + extra;
 }
 
 function openCap() {
@@ -1040,10 +1075,11 @@ function cClose() { $("cmodal").classList.remove("on"); _tmpRisk = null; }
 function cSave() {
   const v = parseFloat($("c-usd").value);
   if (!isFinite(v) || v <= 0) { alert("金额有误"); return; }
-  CFG.CAPITAL = v;
+  BASE_CAP = v;
+  CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
   if (_tmpRisk) CFG.RISK = _tmpRisk;
   try {
-    localStorage.setItem("capital", String(CFG.CAPITAL));
+    localStorage.setItem("capital", String(BASE_CAP));
     localStorage.setItem("riskpct", String(CFG.RISK));
   } catch (e) {}
   refreshCapBar();
