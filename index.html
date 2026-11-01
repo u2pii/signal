@@ -551,12 +551,17 @@ function updateTrailing(p, r) {
 /* 更新持仓的止损（用户点「已更新」后写入） */
 function applySl(sym) {
   const p = loadPos(sym);
-  if (!p || !p._newSl) return;
-  p.sl = p._newSl;
-  p.ext = p._newExt;
-  delete p._newSl; delete p._newExt;
+  if (!p) return;
+  const r = (window._last && window._last.rows || []).find(x => x.sym === sym);
+  if (!r) { alert("找不到 " + sym + " 的行情数据，点「重新检查」后重试"); return; }
+  // 直接用当前行情重算移动止损，不依赖渲染时挂的临时变量
+  const info = updateTrailing(p, r);
+  p.sl = info.sl;
+  p.ext = info.ext;
   savePos(sym, p);
   if (window._last) render(window._last.rows, window._last.sigs);
+  alert("止损已记录：" + (info.sl >= 1000 ? info.sl.toFixed(1) : info.sl.toFixed(4)) +
+        "\n\n（只是更新 App 记录，你在币安上也要改成这个价）");
 }
 
 function closePos(sym) {
