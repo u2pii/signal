@@ -152,12 +152,13 @@ def fetch_market_structure():
             "index": fd["index"] if fd else 0,
         }
         # 基差：标记价 vs 现货
+        # 只在「币安现货真的存在」时才算基差
+        # 没有币安现货时用 index 算会失真（index 可能混入薄盘交易所）
         if item["spot_price"] > 0 and item["mark"] > 0:
             item["basis"] = item["mark"] / item["spot_price"] - 1
-        elif item["index"] > 0 and item["mark"] > 0:
-            item["basis"] = item["mark"] / item["index"] - 1
         else:
             item["basis"] = None
+        item["has_spot"] = item["spot_price"] > 0
         # 成交额倍数
         item["vol_mult"] = (item["fut_vol"] / item["spot_vol"]) if item["spot_vol"] > 0 else None
         out[sym] = item
@@ -218,9 +219,9 @@ def main():
         m["spot_vol"] = st.get("spot_vol", 0)
         # 空头拥挤：合约大幅贴水 + 资金费率趴在低位
         crowded = False
-        if m["basis"] is not None and m["basis"] < -0.05:
+        if m.get("basis") is not None and m["basis"] < -0.05:
             crowded = True
-        if m["basis"] is not None and m["basis"] < -0.03 and m["funding"] is not None and m["funding"] < 0.0002:
+        if m.get("basis") is not None and m["basis"] < -0.03 and m.get("funding") is not None and m["funding"] < 0.0002:
             crowded = True
         m["crowded"] = crowded
 
