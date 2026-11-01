@@ -234,7 +234,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </div>
 
 <!-- 口令门禁 -->
-<div class="modal" id="gmodal" style="display:flex">
+<div class="modal" id="gmodal" style="display:none">
   <div class="mbox">
     <div class="mhead">🔒 需要口令</div>
     <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:14px">
@@ -1118,6 +1118,10 @@ function npSave() {
 
 /* ============ 口令门禁 ============ */
 const ACCESS_KEY = "access_ok";
+// ===== 口令门禁总开关 =====
+// false = 任何人打开都能用（现在的设置）
+// true  = 需要口令 / 主密码才能进（想恢复时改成 true）
+const GATE_ON = false;
 
 function bjToday(off) {
   const ms = Date.now() + 8 * 3600e3 + (off || 0) * 86400e3;
@@ -1158,6 +1162,16 @@ async function deriveToken(pw, dateStr) {
 }
 
 async function verifyAgainst(tok, d) {
+  // 新格式：valid 数组（昨天~后天都算有效）
+  const list = (d.valid && d.valid.length) ? d.valid : null;
+  if (list) {
+    for (const it of list) {
+      const hh = await sha256hex(tok + "|" + it.date);
+      if (hh === it.hash) return true;
+    }
+    return false;
+  }
+  // 兼容旧格式
   let h = await sha256hex(tok + "|" + d.date);
   if (h === d.hash) return true;
   if (d.prev) {
@@ -1165,6 +1179,14 @@ async function verifyAgainst(tok, d) {
     if (h2 === d.prev.hash) return true;
   }
   return false;
+}
+
+/* 返回所有可用日期（用于主密码逐日推导） */
+function tokenDates(d) {
+  if (d.valid && d.valid.length) return d.valid.map(x => x.date);
+  const arr = [d.date];
+  if (d.prev) arr.push(d.prev.date);
+  return arr;
 }
 
 async function checkToken() {
@@ -1199,10 +1221,18 @@ async function checkToken() {
 
     // ③ 再当成「主密码」试（站主用，推导口令后比对）
     msg.textContent = "按主密码验证中…（约 2 秒）";
-    for (const off of [0, -1]) {
-      const dateStr = bjToday(off);
+    for (const dateStr of tokenDates(d)) {
       const t = await deriveToken(el.value, dateStr);
-      if (await verifyAgainst(t, d)) {
+      let hit = false;
+      const list = (d.valid && d.valid.length) ? d.valid : null;
+      if (list) {
+        for (const it of list) {
+          if (await sha256hex(t + "|" + it.date) === it.hash) { hit = true; break; }
+        }
+      } else if (await verifyAgainst(t, d)) {
+        hit = true;
+      }
+      if (hit) {
         grantAccess(t, 365);          // 站主：一年免输
         $("gmodal").style.display = "none";
         startApp();
@@ -1781,7 +1811,11 @@ function startApp() {
   if (!shown) setTimeout(scanAll, 200);
 }
 
-if (!crypto.subtle) {
+if (!GATE_ON) {
+  // 门禁已关闭：直接进入
+  $("gmodal").style.display = "none";
+  startApp();
+} else if (!crypto.subtle) {
   $("g-msg").textContent = "必须用 https 打开（不能是本地文件）";
   $("g-msg").classList.add("bad");
 } else if (hasAccess()) {
