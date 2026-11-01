@@ -2,8 +2,8 @@ name: signal-alert
 
 on:
   schedule:
-    # UTC 00:05 = 北京 08:05（加密日线 08:00 收盘后）
-    - cron: "5 0 * * *"
+    # 每 2 小时一次（UTC 偶数点 05 分）= 北京 08:05 / 10:05 / 12:05 ...
+    - cron: "5 */2 * * *"
   workflow_dispatch:
 
 concurrency:
