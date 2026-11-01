@@ -13,31 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Fetch
-        run: |
-          S=${{ github.event.inputs.symbol }}
-          python -c "
-import urllib.request, json
-UA={'User-Agent':'Mozilla/5.0'}
-def g(u):
-    return json.loads(urllib.request.urlopen(urllib.request.Request(u,headers=UA),timeout=20).read().decode())
-s='$S'
-t=g('https://www.binance.com/fapi/v1/ticker/24hr?symbol='+s)
-print('价格', t['lastPrice'], ' 24h', t['priceChangePercent'], '%')
-print('合约24h额', round(float(t['quoteVolume'])/1e6,2), 'M USDT')
-oi=g('https://www.binance.com/fapi/v1/openInterest?symbol='+s)
-print('持仓量', oi['openInterest'], '张')
-pm=g('https://www.binance.com/fapi/v1/premiumIndex?symbol='+s)
-print('标记价', pm['markPrice'], ' 指数价', pm['indexPrice'])
-print('资金费率', round(float(pm['lastFundingRate'])*100,4), '%')
-print('下次结算', pm['nextFundingTime'])
-lk=g('https://www.binance.com/fapi/v1/klines?symbol='+s+'&interval=1d&limit=12')
-print()
-print('最近12根日线:')
-import datetime
-for k in lk:
-    d=datetime.datetime.utcfromtimestamp(int(k[0])/1000).strftime('%m-%d')
-    o,h,l,c=float(k[1]),float(k[2]),float(k[3]),float(k[4])
-    v=float(k[7])
-    print(f'  {d} 开{o:.6f} 高{h:.6f} 低{l:.6f} 收{c:.6f} {(c/o-1)*100:+6.1f}% 额{v/1e6:.2f}M')
-"
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Probe
+        run: python probe.py ${{ github.event.inputs.symbol }}
