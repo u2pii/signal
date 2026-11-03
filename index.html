@@ -194,7 +194,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.8 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.9 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -461,7 +461,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.8";   // 页面版本，用来判断是不是旧缓存
+const VER = "v3.9";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -2407,12 +2407,17 @@ function exportPos(el) {
     const p = r.pos, i = r.posInfo;
     const mg = p.margin || (p.qty * p.entry / (p.lev || 1));
     const pnl = p.qty * (r.cur - p.entry) * (p.dir === "L" ? 1 : -1);
+    // 真实杠杆用 名义/保证金 反算，不能只信记录里的 lev
+    const realLev = mg > 0 ? (p.qty * p.entry / mg) : (p.lev || 1);
+    const liq = p.dir === "L" ? p.entry * (1 - 1 / realLev) : p.entry * (1 + 1 / realLev);
     txt += r.sym + " " + (p.dir === "L" ? "做多" : "做空") +
-           " " + (p.lev || 1) + "x " + ((p.marginMode === "cross") ? "全仓" : "逐仓") + "\n";
+           " " + realLev.toFixed(2) + "x " + ((p.marginMode === "cross") ? "全仓" : "逐仓") + "\n";
     txt += "  入场 " + p.entry + "  现价 " + r.cur + "\n";
-    txt += "  数量 " + p.qty + "  保证金 " + mg.toFixed(2) + "U\n";
+    txt += "  数量 " + p.qty + "  名义 " + (p.qty * p.entry).toFixed(2) + "U  保证金 " + mg.toFixed(2) + "U\n";
     txt += "  盈亏 " + (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + "U（" +
            (pnl / mg * 100).toFixed(1) + "%）\n";
+    txt += "  强平价 " + (liq >= 1 ? liq.toFixed(4) : liq.toFixed(6)) +
+           "（还有 " + ((liq / r.cur - 1) * 100).toFixed(1) + "% 空间）\n";
   });
   txt += "---\n";
   const done = () => {
