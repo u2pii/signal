@@ -132,6 +132,9 @@ color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
 .subbar button{flex:1;padding:9px 4px;border-radius:10px;border:1px solid #1c2230;background:#0d1015;
 color:#6b7385;font-size:12.5px;font-weight:600;font-family:inherit}
 .subbar button.on{border-color:#3a7d5c;background:#0f2018;color:#4fe0a8}
+.tideintro{font-size:11.5px;color:#7d8699;line-height:1.7;background:#0e1520;
+border:1px solid #1e2c44;border-radius:11px;padding:10px 13px;margin-bottom:12px}
+.tideintro b{color:#8ab4ff}
 .bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
 .bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
 justify-content:space-between;align-items:center}
@@ -204,7 +207,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.3 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.4 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -220,7 +223,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <div class="tabs">
   <button id="tab-main" class="on" onclick="setTAB('main')">主流</button>
-  <button id="tab-alt" onclick="setTAB('alt')">山寨</button>
+  <button id="tab-alt" onclick="setTAB('alt')">潮汐</button>
   <button id="tab-pos" onclick="setTAB('pos')">持仓</button>
 </div>
 <div class="subbar" id="subbar"></div>
@@ -472,7 +475,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.3";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.4";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1464,7 +1467,7 @@ function aggCardSym(sym, price, badgeColor, badgeTxt, lines, acts) {
 /* ---- 山寨 · 激进子页 ---- */
 function altAggHTML() {
   const pbs = ALT.pullback || [], shorts = ALT.short || [];
-  let h = '<h3>⚡ 激进模式 · ' + (ALT.updated || "") + '</h3>';
+  let h = '<h3>潮汐 · 激进 · ' + (ALT.updated || "") + '</h3>';
 
   h += '<div class="bigcard" style="border-color:#5c2028">';
   h += '<div class="bchead"><span style="color:#ff6b7d">⚡ ' + AGG_LEV + 'x 杠杆</span>' +
@@ -1529,7 +1532,7 @@ function altAggHTML() {
 
 /* ---- 主流 · 激进子页 ---- */
 function mainAggHTML(rows, sigs) {
-  let h = '<h3>⚡ 激进模式 · 主流币</h3>';
+  let h = '<h3>潮汐 · 激进 · 主流</h3>';
   h += '<div class="bigcard" style="border-color:#5c2028">';
   h += '<div class="bchead"><span style="color:#ff6b7d">⚡ 满仓 ' + AGG_LEV + 'x</span>' +
        '<span style="font-size:11px;color:#5f6779">信号 ' + sigs.length + ' 个</span></div>';
@@ -1595,7 +1598,7 @@ async function renderAlts() {
 /* ---- 山寨 · 涨跌子页 ---- */
 function altChgHTML() {
   const gain = ALT.gainers || [], lose = ALT.losers || [];
-  let h = '<h3>24h 涨跌幅 · ' + (ALT.updated || "") + '</h3>';
+  let h = '<h3>潮汐 · 涨跌 · ' + (ALT.updated || "") + '</h3>';
   h += '<div class="bigcard"><div class="bchead">📈 涨幅榜</div>';
   if (gain.length) {
     gain.forEach(a => {
@@ -1620,7 +1623,9 @@ function altChgHTML() {
 /* ---- 山寨 · 信号子页（做多 + 做空 归在一个大卡片里）---- */
 function altSigHTML() {
   const pbs = ALT.pullback || [], shorts = ALT.short || [];
-  let h = '<h3>山寨信号 · ' + (ALT.updated || "") + '</h3>';
+  let h = '<h3>潮汐 · 信号 · ' + (ALT.updated || "") + '</h3>';
+  h += '<div class="tideintro">🌊 <b>潮汐</b>：专门做山寨币的暴涨与回落。' +
+       '涨潮做空（等它退），回潮做多（等它再涨）。持有周期 20 天，正好一个潮汐周期。</div>';
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>🎯 今日信号</span>' +
        '<span style="font-size:11px;color:#5f6779">做多 ' + pbs.length +
@@ -1694,7 +1699,7 @@ function altSigHTML() {
 /* ---- 山寨 · 观察子页：可能暴涨 / 可能暴跌 ---- */
 function altWatchHTML() {
   const hot = ALT.hot || [], cold = ALT.cold || [];
-  let h = '<h3>异动观察 · ' + (ALT.updated || "") + '</h3>';
+  let h = '<h3>潮汐 · 观察 · ' + (ALT.updated || "") + '</h3>';
 
   /* —— 可能暴涨 —— */
   h += '<div class="bigcard" style="border-color:#1e3a28">';
