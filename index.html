@@ -135,6 +135,16 @@ color:#6b7385;font-size:12.5px;font-weight:600;font-family:inherit}
 .bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
 .bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
 justify-content:space-between;align-items:center}
+.mgbar{background:#12151d;border:1px solid #232a38;border-radius:12px;padding:11px 13px;margin-bottom:13px}
+.mgbar.over{background:#1a0f11;border-color:#5c2028}
+.mgbar > div:first-child{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:#7d8699}
+.mgbar > div:first-child b{font-size:17px;color:#4fe0a8}
+.mgbar.over > div:first-child b{color:#ff6b7d}
+.mgbar > div:nth-child(2){display:flex;justify-content:space-between;font-size:11px;color:#5f6779;margin-top:5px}
+.mgnote{font-size:11px;color:#ff9aa6;margin-top:7px;padding-top:7px;border-top:1px solid #3a1a1f}
+.capnote{font-size:11.5px;color:#5f6779;line-height:1.7;background:#0d1015;border:1px solid #232a38;
+border-radius:9px;padding:9px 11px;margin:2px 0 12px}
+.capnote b{color:#e2e6f0}
 .aggmg{background:#0d1015;border:1px solid #2a2f3d;border-radius:11px;padding:11px;margin-bottom:12px}
 .aggmg-t{font-size:11.5px;color:#7d8699;margin-bottom:7px}
 .aggmg .mmseg{display:flex;gap:6px}
@@ -194,7 +204,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.9 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.1 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -387,9 +397,10 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   <div class="mbox">
     <div class="mhead">设置账户权益</div>
     <div class="mrow">
-      <label>账户总权益（USDT）</label>
+      <label>你的本金（不含浮动盈亏）</label>
       <input id="c-usd" type="number" step="any" inputmode="decimal" oninput="onCapEdit()">
     </div>
+    <div class="capnote" id="c-floating"></div>
     <div class="mrow">
       <label>单笔风险比例</label>
       <div class="mmseg">
@@ -461,7 +472,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.9";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.1";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -887,6 +898,37 @@ function setSigLev(sym, lev) {
   render(window._last.rows, list);
 }
 
+/* 保证金占用统计（用于 70% 上限提醒） */
+function marginStat(extra) {
+  const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  let used = 0;
+  try {
+    Object.keys(localStorage).filter(function(k){ return k.indexOf("pos_") === 0; })
+      .forEach(function(k){
+        const p = JSON.parse(localStorage.getItem(k));
+        used += p.margin || (p.qty * p.entry / (p.lev || 1)) || 0;
+      });
+  } catch (e) {}
+  const after = used + (extra || 0);
+  const pct = after / eq * 100;
+  return { eq: eq, used: used, after: after, pct: pct, over: pct > 70, free: Math.max(eq - after, 0) };
+}
+
+/* 开仓前的占用检查：超过 70% 就确认一次 */
+function checkMarginCap(newMargin, label) {
+  const m = marginStat(newMargin);
+  if (!m.over) return true;
+  return confirm(
+    "⚠️ 保证金占用会超过 70%\n\n" +
+    "权益 " + m.eq.toFixed(2) + "U\n" +
+    "已占用 " + m.used.toFixed(2) + "U\n" +
+    "这笔再押 " + newMargin.toFixed(2) + "U\n" +
+    "→ 总占用 " + m.after.toFixed(2) + "U（" + m.pct.toFixed(0) + "%）\n" +
+    "→ 剩余 " + m.free.toFixed(2) + "U\n\n" +
+    "占用过高时，一个仓出问题就动不了。\n" +
+    "确定还要开「" + label + "」吗？");
+}
+
 function buildHoldCards(list, title) {
   if (!list || !list.length) return '';
   let h = '<h3>' + title + '</h3>';
@@ -1005,7 +1047,17 @@ function render(rows, sigs) {
 
   // ===== 持仓页：全部持仓 =====
   if (TAB === "pos") {
-    let ph = allHold.length
+    let ph = "";
+    if (allHold.length) {
+      const ms = marginStat(0);
+      ph += '<div class="mgbar ' + (ms.over ? "over" : "") + '">' +
+        '<div><span>保证金占用</span><b>' + ms.pct.toFixed(0) + '%</b></div>' +
+        '<div><span>已用 ' + ms.used.toFixed(2) + 'U</span>' +
+        '<span>可用 ' + ms.free.toFixed(2) + 'U</span></div>' +
+        (ms.over ? '<div class="mgnote">⚠️ 超过 70%，没有余量开新仓了</div>' : '') +
+        '</div>';
+    }
+    ph += allHold.length
       ? buildHoldCards(allHold, "全部持仓")
       : '<div class="empty"><b>还没有任何持仓</b>点上面「记录我的持仓」添加</div>';
     if (allHold.length) {
@@ -2077,9 +2129,19 @@ function refreshCapBar() {
 }
 
 function openCap() {
-  $("c-usd").value = CFG.CAPITAL.toFixed(2);
+  // 只填基准本金，绝不把浮动盈亏写进去（否则每次确认都会叠加一次浮盈）
+  $("c-usd").value = BASE_CAP.toFixed(2);
   setRiskPct(CFG.RISK);
   setLevFixed(CFG.LEV_FIXED || 0);
+  const fn = $("c-floating");
+  if (fn) {
+    fn.innerHTML = "当前浮动盈亏 <b style='color:" +
+      (FLOAT_PNL >= 0 ? "#19c07a" : "#ff6b7d") + "'>" +
+      (FLOAT_PNL >= 0 ? "+" : "") + FLOAT_PNL.toFixed(2) + "U</b>" +
+      "　（系统会自动加在总权益里，不要重复填）<br>" +
+      "合计权益 = 本金 " + BASE_CAP.toFixed(2) + " + 浮动 " +
+      FLOAT_PNL.toFixed(2) + " = <b>" + (BASE_CAP + FLOAT_PNL).toFixed(2) + "U</b>";
+  }
   onCapEdit();
   $("cmodal").classList.add("on");
 }
@@ -2383,6 +2445,7 @@ function modalSave() {
 /* 山寨币做空：直接记录持仓 */
 function markAlt(sym, price, usd, qty, el) {
   if (loadPos(sym)) { alert(sym + " 已经有持仓记录了"); return; }
+  if (!checkMarginCap(usd, sym + " 空单")) return;
   if (!confirm("确认已在币安开好 " + sym + " 的空单？\n\n仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
   savePos(sym, {
     dir: "S", entry: price, sl: price * 2, ext: price,
@@ -2431,6 +2494,7 @@ function exportPos(el) {
 /* 记录回踩做多的仓位 */
 function markPull(sym, price, stop, qty, usd) {
   if (loadPos(sym)) { alert(sym + " 已经有持仓记录了，可在持仓页修改"); return; }
+  if (!checkMarginCap(usd, sym + " 多单")) return;
   if (!confirm("确认已在币安开好 " + sym + " 的多单？\n\n" +
                "入场 " + price + "\n止损 " + stop + "（-10%）\n" +
                "仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
