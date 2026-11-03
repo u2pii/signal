@@ -194,7 +194,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v3.7 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v3.8 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -461,7 +461,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v3.7";   // 页面版本，用来判断是不是旧缓存
+const VER = "v3.8";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1005,9 +1005,14 @@ function render(rows, sigs) {
 
   // ===== 持仓页：全部持仓 =====
   if (TAB === "pos") {
-    $("out").innerHTML = allHold.length
+    let ph = allHold.length
       ? buildHoldCards(allHold, "全部持仓")
       : '<div class="empty"><b>还没有任何持仓</b>点上面「记录我的持仓」添加</div>';
+    if (allHold.length) {
+      ph += '<div class="acts" style="margin-top:14px">' +
+            '<a class="p" onclick="exportPos(this)">📋 复制持仓摘要（发给别人看）</a></div>';
+    }
+    $("out").innerHTML = ph;
     $("alts").innerHTML = "";
     syncTabs();
     return;
@@ -2387,6 +2392,35 @@ function markAlt(sym, price, usd, qty, el) {
   });
   if (window._last) render(window._last.rows, window._last.sigs);
   scanAll();
+}
+
+/* 导出持仓摘要（纯文本，方便复制粘贴） */
+function exportPos(el) {
+  const all = (window._last && window._last.rows && window._last.rows._holdings) || [];
+  if (!all.length) { alert("没有持仓"); return; }
+  const now = new Date().toLocaleString("zh-CN", { hour12: false });
+  let txt = "我的持仓 " + now + "\n";
+  txt += "账户 " + CFG.CAPITAL.toFixed(2) + "U（基准 " + BASE_CAP.toFixed(2) +
+         " 浮动 " + (FLOAT_PNL >= 0 ? "+" : "") + FLOAT_PNL.toFixed(2) + "U）\n";
+  txt += "---\n";
+  all.forEach(r => {
+    const p = r.pos, i = r.posInfo;
+    const mg = p.margin || (p.qty * p.entry / (p.lev || 1));
+    const pnl = p.qty * (r.cur - p.entry) * (p.dir === "L" ? 1 : -1);
+    txt += r.sym + " " + (p.dir === "L" ? "做多" : "做空") +
+           " " + (p.lev || 1) + "x " + ((p.marginMode === "cross") ? "全仓" : "逐仓") + "\n";
+    txt += "  入场 " + p.entry + "  现价 " + r.cur + "\n";
+    txt += "  数量 " + p.qty + "  保证金 " + mg.toFixed(2) + "U\n";
+    txt += "  盈亏 " + (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + "U（" +
+           (pnl / mg * 100).toFixed(1) + "%）\n";
+  });
+  txt += "---\n";
+  const done = () => {
+    if (el) { const o = el.textContent; el.textContent = "✅ 已复制，粘贴给对方"; setTimeout(() => el.textContent = o, 2000); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else { fallbackCopy(txt, done); }
 }
 
 /* 记录回踩做多的仓位 */
