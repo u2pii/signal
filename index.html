@@ -204,7 +204,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.2 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.3 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -472,7 +472,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.2";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.3";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -666,116 +666,130 @@ function resetAll() {
 }
 
 /* ============ 主流程 ============ */
-/* ============ 快速取价（一次请求拿全市场）============ */
-/* 只为算浮盈，不需要 K 线。币安 ticker/price 一次返回全部交易对 */
 
-let _priceMap = {};
-let _priceAt = 0;
 
-async function fetchAllPrices(force) {
-  if (!force && Date.now() - _priceAt < 20000 && Object.keys(_priceMap).length) {
-    return _priceMap;
-  }
-  // 1) 币安现货全量（一个请求，约 200KB）
-  try {
-    const r = await fetch("https://data-api.binance.vision/api/v3/ticker/price");
-    if (r.ok) {
-      const arr = await r.json();
-      const m = {};
-      for (const x of arr) {
-        const s = x.symbol;
-        if (s && s.length > 4 && s.slice(-4) === "USDT") {
-          const p = parseFloat(x.price);
-          if (isFinite(p) && p > 0) m[s.slice(0, -4)] = p;
-        }
-      }
-      if (Object.keys(m).length > 100) {
-        _priceMap = m;
-        _priceAt = Date.now();
-        return m;
-      }
-    }
-  } catch (e) { /* 走兜底 */ }
-
-  // 2) Gate 合约全量（兜底：币安没上现货的币）
-  try {
-    const r = await fetch("https://api.gateio.ws/api/v4/futures/usdt/tickers");
-    if (r.ok) {
-      const arr = await r.json();
-      const m = Object.assign({}, _priceMap);
-      for (const x of arr) {
-        const c = x.contract || "";
-        if (c.slice(-5) !== "_USDT") continue;
-        const sym = c.slice(0, -5);
-        const p = parseFloat(x.last);
-        if (isFinite(p) && p > 0 && !m[sym]) m[sym] = p;
-      }
-      if (Object.keys(m).length > 100) {
-        _priceMap = m;
-        _priceAt = Date.now();
-        return m;
-      }
-    }
-  } catch (e) { /* 放弃 */ }
-  return Object.keys(_priceMap).length ? _priceMap : null;
-}
 
 /* 用批量价格快速刷新浮盈 —— 不拉 K 线，通常 0.3~1 秒 */
 /* 统一的刷新入口：持仓页只取价，其它页完整扫描 */
+function btnDefault() {
+  const b = $("go");
+  if (b) { b.disabled = false; b.textContent = "🔍 重新检查"; }
+}
+
 function doRefresh() {
   const btn = $("go");
   if (TAB === "pos") {
     btn.disabled = true;
     btn.innerHTML = '<span class="spin"></span>取价中…';
     const t0 = Date.now();
-    quickPnl(true).then(function (ok) {
+    quickPnl(true).then(function () {
       btn.disabled = false;
       btn.textContent = "🔍 重新检查";
-      $("hint").textContent = ok
-        ? "价格已更新（" + (Date.now() - t0) + " 毫秒）"
-        : "取价失败，稍后再试";
     });
     return;
   }
   scanAll();
 }
 
-async function quickPnl(showPosOnly) {
-  const t0 = Date.now();
-  const pm = await fetchAllPrices(true);
-  if (!pm) return false;
+/* ============ 快速取价 v2：缓存秒显 + 逐个更新 ============ */
+/* 网络往返 0.5~5 秒无法避免，但可以先显示上次价格，再逐个替换 */
 
+let _priceCache = {};   // {SYM: {p: 价格, t: 时间戳}}
+
+function loadPriceCache() {
+  try {
+    const raw = localStorage.getItem("price_cache");
+    if (raw) _priceCache = JSON.parse(raw) || {};
+  } catch (e) { _priceCache = {}; }
+}
+
+function savePriceCache() {
+  try {
+    // 只留最近 200 个，避免无限增长
+    const keys = Object.keys(_priceCache);
+    if (keys.length > 200) {
+      keys.sort((a, b) => (_priceCache[b].t || 0) - (_priceCache[a].t || 0));
+      const keep = {};
+      keys.slice(0, 200).forEach(k => { keep[k] = _priceCache[k]; });
+      _priceCache = keep;
+    }
+    localStorage.setItem("price_cache", JSON.stringify(_priceCache));
+  } catch (e) {}
+}
+
+function cachedPrice(sym) {
+  const c = _priceCache[sym];
+  return c && c.p ? c.p : null;
+}
+
+function cacheAgeSec(sym) {
+  const c = _priceCache[sym];
+  return c ? Math.round((Date.now() - c.t) / 1000) : -1;
+}
+
+/* 取单个币的现价：币安现货 → Gate 合约 */
+async function priceOne(sym, timeoutMs) {
+  const to = timeoutMs || 12000;
+  const withTimeout = (p) => Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), to))
+  ]);
+
+  // 1) 币安现货（主流币命中率最高，返回 45 字节）
+  try {
+    const r = await withTimeout(fetch(
+      "https://data-api.binance.vision/api/v3/ticker/price?symbol=" + sym + "USDT",
+      { cache: "no-store" }));
+    if (r.ok) {
+      const d = await r.json();
+      const p = parseFloat(d.price);
+      if (isFinite(p) && p > 0) return p;
+    }
+  } catch (e) { /* 走 Gate */ }
+
+  // 2) Gate 合约（山寨币主要来源）
+  try {
+    const r = await withTimeout(fetch(
+      "https://api.gateio.ws/api/v4/futures/usdt/tickers?contract=" + sym + "_USDT",
+      { cache: "no-store" }));
+    if (r.ok) {
+      const arr = await r.json();
+      const p = parseFloat(arr && arr[0] && arr[0].last);
+      if (isFinite(p) && p > 0) return p;
+    }
+  } catch (e) { /* 放弃 */ }
+
+  return null;
+}
+
+/* 用缓存价格立刻算出浮盈并渲染（0 延迟） */
+function applyCachedPrices() {
   let held = [];
   try {
     held = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0).map(k => k.slice(4));
   } catch (e) {}
-  if (!held.length) { refreshCapBar(); return true; }
+  if (!held.length) return 0;
 
-  // 复用上一轮的 rows（保留信号），只更新价格
   const prev = (window._last && window._last.rows) || [];
   const bySym = {};
   prev.forEach(r => { bySym[r.sym] = r; });
 
   const rows = [];
-  // 先把已持仓的币补齐
   held.forEach(sym => {
     const p = loadPos(sym);
     if (!p || !p.qty) return;
-    const px = pm[sym];
+    const px = cachedPrice(sym);
     if (!px) return;
     const base = bySym[sym] || {
       sym: sym, cur: px, hh: px, ll: px, atr: null,
-      src: "币安", isMajor: CFG.COINS.indexOf(sym) >= 0, sig: null
+      src: "缓存", isMajor: CFG.COINS.indexOf(sym) >= 0, sig: null
     };
     base.cur = px;
     rows.push(base);
   });
-  // 再把上一轮里其它币带上（保留主页面列表）
-  prev.forEach(r => {
-    if (!rows.some(x => x.sym === r.sym)) rows.push(r);
-  });
+  if (!rows.length) return 0;
+  prev.forEach(r => { if (!rows.some(x => x.sym === r.sym)) rows.push(r); });
 
-  // 重算浮盈 + 持仓信息
   FLOAT_PNL = 0;
   const holdings = [];
   for (const r of rows) {
@@ -797,20 +811,50 @@ async function quickPnl(showPosOnly) {
   const sigs = (window._last && window._last.sigs) || [];
   window._last = { rows: rows, sigs: sigs };
   refreshCapBar();
-  try {
-    $("hint").textContent = "价格已更新 " +
-      new Date().toLocaleTimeString("zh-CN", { hour12: false });
-  } catch (e) {}
+  if (TAB === "pos" || TAB === "alt") render(rows, sigs);
+  return holdings.length;
+}
 
-  // 持仓页/山寨页先渲染出来（信号页等完整扫描）
-  if (showPosOnly || TAB === "pos" || TAB === "alt") {
-    render(rows, sigs);
+/* 逐个取价，每到一个就更新一次界面 */
+async function quickPnl(showPosOnly) {
+  const t0 = Date.now();
+  let held = [];
+  try {
+    held = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0).map(k => k.slice(4));
+  } catch (e) {}
+  if (!held.length) { refreshCapBar(); return 0; }
+
+  // 先秒显缓存
+  const n0 = applyCachedPrices();
+  if (n0) {
+    try {
+      $("hint").textContent = "先用上次价格显示，正在更新…";
+    } catch (e) {}
   }
 
+  // 再并发取，谁先回来谁先更新
+  let got = 0;
+  const tasks = held.map(sym => priceOne(sym).then(px => {
+    if (!px) return;
+    _priceCache[sym] = { p: px, t: Date.now() };
+    got++;
+    savePriceCache();
+    // 每到一个价格就重算一次（只在持仓/山寨页重渲染）
+    if (TAB === "pos" || TAB === "alt" || showPosOnly) applyCachedPrices();
+    else refreshCapBar();
+  }).catch(() => {}));
+
+  await Promise.all(tasks);
+
   const dt = Date.now() - t0;
-  try { localStorage.setItem("last_pnl_at", String(Date.now())); } catch (e) {}
+  try {
+    $("hint").textContent = got
+      ? "已更新 " + got + "/" + held.length + " 个价格（" + dt + " 毫秒）"
+      : "取价失败，先用上次价格";
+  } catch (e) {}
   return dt;
 }
+
 
 async function scanAll() {
   const btn = $("go");
@@ -903,6 +947,14 @@ async function scanAll() {
 
   // 已持仓的币不再显示「开仓信号」，避免重复开仓
   const finalSigs = sigs.filter(s => !holdings.some(h => h.sym === s.sym));
+
+  // 把这次拿到的价格写进缓存，下次打开可以秒显
+  try {
+    rows.forEach(r => {
+      if (!r.err && r.cur > 0) _priceCache[r.sym] = { p: r.cur, t: Date.now() };
+    });
+    savePriceCache();
+  } catch (e) {}
 
   render(rows, finalSigs);
   btn.disabled = false;
@@ -2767,6 +2819,7 @@ function startApp() {
 
   syncTabs();
   loadCap();
+  loadPriceCache();
   refreshCapBar();
   if (needOnboard() || !localStorage.getItem('welcomeDone')) setTimeout(openWelcome, 600);
   setTimeout(refreshCapBar, 500);
@@ -2790,9 +2843,10 @@ function startApp() {
       }
     }
   } catch (e) {}
-  // 先秒出浮盈（一次批量请求），再跑完整扫描
+  // 持仓页只需要价格，不拉 K 线
   quickPnl(false);
-  if (!shown) setTimeout(scanAll, 200);
+  if (!shown && TAB !== "pos") setTimeout(scanAll, 200);
+  else if (!shown) btnDefault();
 }
 
 if (!GATE_ON) {
