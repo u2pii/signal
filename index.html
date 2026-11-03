@@ -138,6 +138,33 @@ border:1px solid #1e2c44;border-radius:11px;padding:10px 13px;margin-bottom:12px
 .bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
 .bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
 justify-content:space-between;align-items:center}
+/* 羊毛账本 */
+.woolstat{background:#12151d;border:1px solid #232a38;border-radius:13px;padding:13px 15px;margin-bottom:14px}
+.wsrow{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;font-size:13px;color:#7d8699}
+.wsrow b{font-size:15px;color:#e2e6f0;font-variant-numeric:tabular-nums}
+.wsrow b.good{color:#19c07a}
+.wsrow b.bad{color:#ff6b7d}
+.wform{padding:2px 0}
+.wf-in{width:100%;background:#0a0c10;border:1px solid #2a3448;border-radius:9px;color:#e2e6f0;
+padding:10px 12px;font-size:14px;font-family:inherit;margin-bottom:9px}
+.wf-row{display:flex;gap:9px}
+.wf-row .wf-in{margin-bottom:9px}
+.wf-check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7d8699;margin-bottom:11px}
+.wf-btn{width:100%;padding:12px;border-radius:10px;border:none;background:#2f6bff;color:#fff;
+font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.wrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;
+border-bottom:1px solid #181c26}
+.wrow:last-child{border-bottom:none}
+.wrow-l{display:flex;align-items:center;gap:7px;min-width:0;flex:1}
+.wdate{font-size:10.5px;color:#4b5266;font-variant-numeric:tabular-nums}
+.wapp{font-size:12.5px;color:#e2e6f0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wgot{font-size:9.5px;color:#19c07a;background:#0b1710;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.wnot{font-size:9.5px;color:#5f6779;background:#141820;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.wrow-r{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.wrow-r b{font-size:12.5px;font-variant-numeric:tabular-nums}
+.wrate{font-size:10px;color:#4b5266;font-variant-numeric:tabular-nums}
+.wdel{font-size:10.5px;color:#5c3a3a;padding:3px 6px}
+.woolnit{font-size:11px;color:#3d4352;line-height:1.9;margin-top:12px}
 .mgbar{background:#12151d;border:1px solid #232a38;border-radius:12px;padding:11px 13px;margin-bottom:13px}
 .mgbar.over{background:#1a0f11;border-color:#5c2028}
 .mgbar > div:first-child{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:#7d8699}
@@ -207,7 +234,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.5 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.6 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -225,6 +252,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   <button id="tab-main" class="on" onclick="setTAB('main')">主流</button>
   <button id="tab-alt" onclick="setTAB('alt')">顶口</button>
   <button id="tab-pos" onclick="setTAB('pos')">持仓</button>
+  <button id="tab-wool" onclick="setTAB('wool')">羊毛</button>
 </div>
 <div class="subbar" id="subbar"></div>
 
@@ -475,7 +503,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.5";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.6";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1247,11 +1275,141 @@ function buildHoldCards(list, title) {
   return h;
 }
 
+/* ============ 薅羊毛账本 ============ */
+/* 记录每天在哪个 App 刷了多久、赚了多少，算出真实时薪 */
+
+let WOOL = [];
+
+function loadWool() {
+  try {
+    WOOL = JSON.parse(localStorage.getItem("wool_log") || "[]");
+    if (!Array.isArray(WOOL)) WOOL = [];
+  } catch (e) { WOOL = []; }
+}
+
+function saveWool() {
+  try { localStorage.setItem("wool_log", JSON.stringify(WOOL)); } catch (e) {}
+}
+
+function woolAdd() {
+  const app = ($("wl-app").value || "").trim();
+  const hrs = parseFloat($("wl-hrs").value);
+  const amt = parseFloat($("wl-amt").value);
+  const got = $("wl-got").checked;
+  if (!app) { alert("填一下 App 名字"); return; }
+  if (!isFinite(hrs) || hrs <= 0) { alert("填观看时长（小时）"); return; }
+  if (!isFinite(amt) || amt < 0) { alert("填当天赚了多少元"); return; }
+
+  const d = new Date();
+  const date = d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+
+  WOOL.push({ date: date, app: app, hrs: hrs, amt: amt, got: !!got, t: Date.now() });
+  saveWool();
+  $("wl-app").value = "";
+  $("wl-hrs").value = "";
+  $("wl-amt").value = "";
+  $("wl-got").checked = false;
+  renderWool();
+}
+
+function woolDel(i) {
+  if (!confirm("删除这条记录？")) return;
+  WOOL.splice(i, 1);
+  saveWool();
+  renderWool();
+}
+
+function renderWool() {
+  const box = $("out");
+  if (!box) return;
+  loadWool();
+
+  const today = new Date();
+  const ym = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0");
+  const todayStr = today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+
+  let mAmt = 0, mHrs = 0, tAmt = 0, tHrs = 0, cashAmt = 0;
+  WOOL.forEach(w => {
+    if (w.date.indexOf(ym) === 0) { mAmt += w.amt; mHrs += w.hrs; }
+    if (w.date === todayStr) { tAmt += w.amt; tHrs += w.hrs; }
+    if (w.got) cashAmt += w.amt;
+  });
+
+  let h = '<h3>羊毛账本</h3>';
+
+  /* 统计卡 */
+  h += '<div class="woolstat">' +
+    '<div class="wsrow"><span>本月累计</span><b class="good">' + mAmt.toFixed(2) + ' 元</b></div>' +
+    '<div class="wsrow"><span>今日</span><b>' + tAmt.toFixed(2) + ' 元</b></div>' +
+    '<div class="wsrow"><span>本月耗时</span><b>' + mHrs.toFixed(1) + ' 小时</b></div>' +
+    '<div class="wsrow"><span>真实时薪</span><b class="' +
+      (mHrs > 0 && mAmt / mHrs >= 5 ? "good" : "bad") + '">' +
+      (mHrs > 0 ? (mAmt / mHrs).toFixed(2) : "—") + ' 元/小时</b></div>' +
+    '<div class="wsrow"><span>已提现到账</span><b class="good">' + cashAmt.toFixed(2) + ' 元</b></div>' +
+    '</div>';
+
+  /* 记录表单 */
+  h += '<div class="bigcard">' +
+    '<div class="bchead"><span>记一笔</span>' +
+    '<span style="font-size:11px;color:#5f6779">只记真实到账的</span></div>' +
+    '<div class="wform">' +
+      '<input id="wl-app" placeholder="App 名字（抖音极速版…）" class="wf-in">' +
+      '<div class="wf-row">' +
+        '<input id="wl-hrs" type="number" step="0.1" inputmode="decimal" placeholder="时长(小时)" class="wf-in">' +
+        '<input id="wl-amt" type="number" step="0.01" inputmode="decimal" placeholder="赚了多少元" class="wf-in">' +
+      '</div>' +
+      '<label class="wf-check"><input id="wl-got" type="checkbox"> 已经提现到账</label>' +
+      '<button class="wf-btn" onclick="woolAdd()">＋ 添加记录</button>' +
+    '</div></div>';
+
+  /* 记录列表 */
+  if (WOOL.length) {
+    const list = WOOL.slice().reverse();
+    h += '<div class="bigcard"><div class="bchead"><span>最近记录</span>' +
+      '<span style="font-size:11px;color:#5f6779">' + WOOL.length + ' 条</span></div>';
+    list.slice(0, 30).forEach((w) => {
+      const idx = WOOL.indexOf(w);
+      const rate = w.hrs > 0 ? (w.amt / w.hrs).toFixed(1) : "—";
+      h += '<div class="wrow">' +
+        '<div class="wrow-l"><span class="wdate">' + w.date.slice(5) + '</span>' +
+        '<span class="wapp">' + w.app + '</span>' +
+        (w.got ? '<span class="wgot">已到账</span>' : '<span class="wnot">未提</span>') + '</div>' +
+        '<div class="wrow-r"><b class="good">' + w.amt.toFixed(2) + '元</b>' +
+        '<span class="wrate">' + w.hrs.toFixed(1) + 'h · ' + rate + '元/h</span>' +
+        '<a class="wdel" onclick="woolDel(' + idx + ')">删</a></div>' +
+        '</div>';
+    });
+    h += '</div>';
+  } else {
+    h += '<div class="empty"><b>还没有记录</b>刷完一天，上来记一笔</div>';
+  }
+
+  /* 提示 */
+  h += '<div class="woolnit">' +
+    '📌 只记「真实到账」的钱。金币没提出来不算。<br>' +
+    '📌 时薪低于 5 元/小时 → 这个 App 不值得再刷。<br>' +
+    '📌 单价掉到 0.2 元/条以下 → 停一天，账号质量分会掉。' +
+    '</div>';
+
+  box.innerHTML = h;
+  $("alts").innerHTML = "";
+}
+
 function render(rows, sigs) {
   let h = "";
 
   const allHold = rows._holdings || [];
 
+  // ===== 羊毛账本 =====
+  if (TAB === "wool") {
+    renderWool();
+    syncTabs();
+    return;
+  }
   // ===== 持仓页：全部持仓 =====
   if (TAB === "pos") {
     let ph = "";
@@ -2238,13 +2396,14 @@ const SUBS = {
     { k: "watch", t: "观察" },
     { k: "agg",  t: "⚡激进" }
   ],
-  pos: []
+  pos: [],
+  wool: []
 };
 
 function isAltSym(sym) { return CFG.COINS.indexOf(sym) < 0; }
 
 function syncTabs() {
-  ["main", "alt", "pos"].forEach(function (t) {
+  ["main", "alt", "pos", "wool"].forEach(function (t) {
     const b = $("tab-" + t);
     if (b) b.classList.toggle("on", TAB === t);
   });
@@ -2282,7 +2441,7 @@ function setSUB(s) {
 
 try {
   const saved = localStorage.getItem("tab");
-  if (saved === "main" || saved === "alt" || saved === "pos") TAB = saved;
+  if (saved === "main" || saved === "alt" || saved === "pos" || saved === "wool") TAB = saved;
   const savedSub = localStorage.getItem("sub_" + TAB);
   if (savedSub) SUB = savedSub;
 } catch (e) {}
