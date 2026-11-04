@@ -207,7 +207,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.5 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.6 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -475,7 +475,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.5";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.6";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1276,6 +1276,12 @@ function render(rows, sigs) {
     syncTabs();
     return;
   }
+  // ===== 山寨页：急杀子页自己渲染 =====
+  if (TAB === "alt" && SUB === "crash") {
+    renderCrash();
+    syncTabs();
+    return;
+  }
   // ===== 山寨页：交给 renderAlts 按子页输出 =====
   if (TAB === "alt") {
     $("out").innerHTML = "";
@@ -1577,6 +1583,266 @@ function copyAgg(sym, dir, price, stop, qty, margin, notional, el) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
   } else { fallbackCopy(txt, done); }
+}
+
+/* ============ 顶口 · 急杀做多（15分钟） ============ */
+/* 形态（回测依据 analyze_crash15m2.py）：
+     日线暴涨 ≥30%
+     15m 从高点 30 分钟内急跌 ≥10%
+     等第一根 15m 收阳 → 进场做多
+     止损 -10% ~ -15%，持有 16 小时，不设止盈
+   回测：85 笔，胜率 63.5%，+2.159R，PF 7.72，t=5.43
+        样本内 +2.224R / 样本外 +2.095R（一致）
+   注意：样本仅 85 笔、近 85 天、有幸存者偏差，实际打三折看 */
+
+const CRASH = {
+  loading: false,
+  done: false,
+  items: [],
+  err: null,
+  at: 0,
+};
+
+async function gfetch15(sym) {
+  const url = "https://api.gateio.ws/api/v4/futures/usdt/candlesticks" +
+              "?contract=" + sym + "_USDT&interval=15m&limit=200";
+  const ctl = new AbortController();
+  const tm = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
+    clearTimeout(tm);
+    if (!r.ok) return null;
+    const arr = await r.json();
+    if (!Array.isArray(arr) || arr.length < 20) return null;
+    const out = arr.map(x => ({
+      t: +x.t, o: +x.o, h: +x.h, l: +x.l, c: +x.c
+    })).filter(x => x.c > 0);
+    out.sort((a, b) => a.t - b.t);
+    return out;
+  } catch (e) {
+    clearTimeout(tm);
+    return null;
+  }
+}
+
+/* 在 15m 序列里找「急杀 + 收阳确认」
+   返回 {crashIdx, crashPct, high, low, confirmIdx, ageMin} 或 {waiting:true,...} 或 null */
+function detectCrashSetup(rows, crashPct) {
+  const n = rows.length;
+  if (n < 30) return null;
+  const thr = crashPct === undefined ? 0.10 : crashPct;
+
+  // 只看最近 48 小时（192 根）；取「最近一次」急杀
+  const start = Math.max(0, n - 192);
+  let hi = null;
+  let crash = null;
+
+  for (let k = start; k < n; k++) {
+    if (hi === null || rows[k].h > hi) { hi = rows[k].h; }
+    if (hi <= 0) continue;
+    const from = Math.max(start, k - 1);
+    let lo = Infinity;
+    for (let j = from; j <= k; j++) {
+      if (rows[j].l < lo) { lo = rows[j].l; }
+    }
+    if ((hi - lo) / hi >= thr) {
+      crash = { crashIdx: k, crashPct: (hi - lo) / hi, high: hi, low: lo };
+      hi = rows[k].h;          // 急杀后重置高点，这样后续更深的急杀能单独识别
+    }
+  }
+  if (!crash) return null;
+
+  // 急杀之后找第一根收阳
+  let confirmIdx = -1;
+  for (let k = crash.crashIdx + 1; k < Math.min(crash.crashIdx + 5, n); k++) {
+    if (rows[k].c > rows[k - 1].c) { confirmIdx = k; break; }
+  }
+  if (confirmIdx < 0) {
+    return {
+      waiting: true,
+      crashPct: crash.crashPct,
+      low: crash.low,
+      ageMin: Math.round((Date.now() / 1000 - rows[n - 1].t) / 60),
+      barsSince: n - 1 - crash.crashIdx,
+    };
+  }
+  const entry = rows[confirmIdx].c;
+  const barsAgo = n - 1 - confirmIdx;
+  return {
+    waiting: false,
+    crashPct: crash.crashPct,
+    low: crash.low,
+    entry: entry,
+    stop10: entry * 0.90,
+    stop15: entry * 0.85,
+    barsAgo: barsAgo,
+    ageMin: barsAgo * 15,
+    fresh: barsAgo <= 4,          // 1 小时内确认 → 还能进
+  };
+}
+
+function crashCandidates() {
+  const set = {};
+  const add = (sym, why) => {
+    if (!sym || set[sym]) return;
+    set[sym] = { sym: sym, why: why };
+  };
+  (ALT && ALT.short || []).forEach(a => add(a.sym, "暴涨 " + a.pump_pct + "%"));
+  (ALT && ALT.cold || []).forEach(a => add(a.sym, "近5日 +" + a.r5 + "%"));
+  (ALT && ALT.pullback || []).forEach(a => add(a.sym, "回落 " + a.pullback + "%"));
+  return Object.keys(set).slice(0, 22).map(k => set[k]);
+}
+
+async function scanCrash() {
+  if (CRASH.loading) return;
+  CRASH.loading = true;
+  CRASH.done = false;
+  CRASH._auto = true;
+  CRASH.items = [];
+  CRASH.err = null;
+  renderCrash();
+
+  const cands = crashCandidates();
+  const out = [];
+  const CONC = 6;
+  let idx = 0;
+
+  async function worker() {
+    while (idx < cands.length) {
+      const c = cands[idx++];
+      const rows = await gfetch15(c.sym);
+      if (rows) {
+        const setup = detectCrashSetup(rows, 0.10);
+        if (setup) out.push(Object.assign({ sym: c.sym, why: c.why }, setup));
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CONC }, worker));
+
+  out.sort((a, b) => {
+    if (a.waiting !== b.waiting) return a.waiting ? 1 : -1;
+    if (!a.waiting && !b.waiting) return a.barsAgo - b.barsAgo;
+    return b.crashPct - a.crashPct;
+  });
+
+  CRASH.items = out;
+  CRASH.done = true;
+  CRASH.loading = false;
+  CRASH.at = Date.now();
+  renderCrash();
+}
+
+function renderCrash() {
+  const box = $("out");
+  if (!box) return;
+
+  let h = '<h3>顶口 · 急杀做多 · 15分钟</h3>';
+  h += '<div class="tideintro" style="border-color:#3a2e10;background:#161106">' +
+    '⚡ <b>急杀做多</b>：暴涨过的币，15 分钟内从高点急跌 ≥10%，' +
+    '<b>等第一根 15m 收阳再进</b>，止损 -10%，持有 16 小时。<br>' +
+    '<span style="color:#f0be5a">⚠️ 回测 85 笔 / 胜率 63.5% / +2.159R / t=5.43，' +
+    '但样本只有近 85 天、有幸存者偏差，实际打三折看</span></div>';
+
+  if (CRASH.loading) {
+    h += '<div class="bigcard" style="text-align:center;padding:26px 14px">' +
+      '<div class="spin" style="margin:0 auto 10px"></div>' +
+      '<div style="font-size:13px;color:#7d8699">正在拉 15 分钟数据…</div>' +
+      '<div style="font-size:11px;color:#4b5266;margin-top:6px">约 2~5 秒</div></div>';
+    box.innerHTML = h;
+    $("alts").innerHTML = "";
+    return;
+  }
+
+  if (!CRASH.done) {
+    // 首次进入自动扫一次
+    if (!CRASH._auto) {
+      CRASH._auto = true;
+      setTimeout(function () { scanCrash(); }, 60);
+    }
+    h += '<div class="bigcard"><button class="wf-btn" style="background:#c9a227;color:#1a1408" ' +
+      'onclick="scanCrash()">⚡ 扫描急杀信号（实时）</button>' +
+      '<div style="font-size:11px;color:#4b5266;margin-top:10px;line-height:1.7">' +
+      '在你手机上现场计算，不用等服务器。<br>' +
+      '扫描 ' + crashCandidates().length + ' 个刚暴涨过的币，约 2~5 秒。</div></div>';
+    box.innerHTML = h;
+    $("alts").innerHTML = "";
+    return;
+  }
+
+  const ready = CRASH.items.filter(x => !x.waiting && x.barsAgo <= 4);
+  const late = CRASH.items.filter(x => !x.waiting && x.barsAgo > 4 && x.barsAgo <= 16);
+  const gone = CRASH.items.filter(x => !x.waiting && x.barsAgo > 16);
+  const wait = CRASH.items.filter(x => x.waiting);
+
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>扫描结果</span>' +
+    '<span style="font-size:11px;color:#5f6779">' +
+    new Date(CRASH.at).toLocaleTimeString("zh-CN", { hour12: false }) + '</span></div>';
+  h += '<div style="font-size:12px;color:#7d8699;padding:5px 0">' +
+    '可进场 <b style="color:#4fe0a8">' + ready.length + '</b> · 偏晚 ' + late.length +
+    ' · 过时 ' + gone.length + ' · 等待收阳 <b style="color:#f0be5a">' + wait.length + '</b></div>';
+
+  if (ready.length) {
+    h += '<div class="secttl" style="color:#4fe0a8;margin-top:12px">✅ 现在可进场（1 小时内确认）</div>';
+    ready.forEach(a => { h += crashCard(a, true); });
+  }
+  if (wait.length) {
+    h += '<div class="secttl" style="color:#f0be5a;margin-top:14px">⏳ 正在急杀，等收阳</div>';
+    wait.forEach(a => { h += crashCard(a, false); });
+  }
+  if (late.length) {
+    h += '<div class="secttl" style="color:#7d8699;margin-top:14px">🕐 偏晚（1~4 小时前确认）</div>';
+    late.forEach(a => { h += crashCard(a, false); });
+  }
+  if (gone.length) {
+    h += '<div class="secttl" style="color:#5f6779;margin-top:14px">💤 已过时（>4 小时，别追）</div>';
+    gone.forEach(a => { h += crashCard(a, false); });
+  }
+  if (!CRASH.items.length) {
+    h += '<div class="sc2empty">没有检测到「暴涨后急杀」的形态</div>';
+  }
+  h += '</div>';
+
+  h += '<div class="bigcard"><button class="wf-btn" style="background:#1a1f2a;color:#8ab4ff" ' +
+    'onclick="scanCrash()">🔄 重新扫描</button></div>';
+
+  h += '<div class="woolnit" style="font-size:11px;color:#3d4352;line-height:1.9;margin-top:12px">' +
+    '⚠️ 急杀跌超 20% 后不要再进（回测：20% 以上 t 值降到 0.89，25% 以上归零）<br>' +
+    '⚠️ 和顶口的「做空信号」可能撞车 —— 同一个币不要同时做多做空<br>' +
+    '⚠️ 数据来自 Gate 15m，你下单在币安，价格可能有小差异</div>';
+
+  box.innerHTML = h;
+  $("alts").innerHTML = "";
+}
+
+function crashCard(a, canEnter) {
+  const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
+  let h = '<div class="scard" style="border-left-color:' + (canEnter ? "#19c07a" : "#8a6a1e") + '">' +
+    '<div class="atop"><span class="anm">' + a.sym + '</span>' +
+    '<span class="sbadge" style="background:' + (canEnter ? "#0b1710" : "#1a1408") + ';color:' +
+    (canEnter ? "#4fe0a8" : "#f0be5a") + '">急杀 -' + (a.crashPct * 100).toFixed(1) + '%</span></div>';
+  h += '<div class="aline">来源 <b style="color:#7d8699">' + a.why + '</b></div>';
+
+  if (a.waiting) {
+    h += '<div class="aline">急杀低点 <b class="bad">' + f(a.low) + '</b>' +
+      '　已过 <b>' + a.barsSince + ' 根 15m</b></div>';
+    h += '<div class="aline" style="color:#f0be5a">还没收阳，<b>不要进场</b></div>';
+  } else {
+    h += '<div class="aline">进场价 <b class="good">' + f(a.entry) + '</b>' +
+      '　止损 <b style="color:#ffc94d">' + f(a.stop10) + '</b>（-10%）</div>';
+    h += '<div class="aline">确认于 <b>' + a.barsAgo + ' 根前</b>（约 ' + a.ageMin +
+      ' 分钟）　持有 <b>16 小时</b></div>';
+    const qty = posUsd / a.entry;
+    const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
+    h += '<div class="aline">仓位 <b>' + posUsd.toFixed(2) + 'U</b>　数量 <b>' + qs + '</b></div>';
+    if (canEnter) {
+      h += '<div class="acts"><a class="p" style="background:#19c07a;color:#fff" ' +
+        'onclick="markPull(\'' + a.sym + '\',' + a.entry + ',' + a.stop10 + ',\'' + qs + '\',' +
+        posUsd + ')">我已开多</a></div>';
+    }
+  }
+  h += '</div>';
+  return h;
 }
 
 /* ============ 山寨页：三个子页 ============ */
@@ -2234,6 +2500,7 @@ const SUBS = {
   ],
   alt: [
     { k: "sig",  t: "信号" },
+    { k: "crash", t: "急杀" },
     { k: "chg",  t: "涨跌" },
     { k: "watch", t: "观察" },
     { k: "agg",  t: "⚡激进" }
@@ -2273,6 +2540,7 @@ function setTAB(t) {
 }
 
 function setSUB(s) {
+  if (SUB === "crash" && s !== "crash") { const o = $("out"); if (o) o.innerHTML = ""; }
   SUB = s;
   try { localStorage.setItem("sub_" + TAB, s); } catch (e) {}
   syncTabs();
