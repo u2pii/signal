@@ -207,7 +207,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.6 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.7 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -475,7 +475,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.6";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.7";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -918,23 +918,52 @@ async function scanAll() {
 
   sigs.forEach(s => sizePosition(s));
 
-  // 保证金总量检查：同时持仓不能超过本金
-  let usedMargin = 0;
+  // ===== 保证金检查：已有持仓的占用也算进来 =====
+  // 可用 = 本金 × 95% － 已有持仓保证金
+  let heldMargin = 0;
+  let heldCount = 0;
+  for (const r of rows) {
+    if (r.err) continue;
+    const pp = loadPos(r.sym);
+    if (!pp || !pp.qty) continue;
+    const mg0 = pp.margin || (pp.qty * pp.entry / (pp.lev || 1));
+    heldMargin += mg0;
+    heldCount++;
+  }
+  const capLimit = CFG.CAPITAL * 0.95;
+  let usedMargin = heldMargin;
   const keep = [];
   const dropped = [];
   for (const s of sigs) {
-    const m = s.notional / s.lev;
-    if (usedMargin + m <= CFG.CAPITAL * 0.95 && !s.tooSmall) {
-      usedMargin += m;
-      s.margin = m;
-      keep.push(s);
-    } else {
+    if (s.tooSmall && s.notional < MIN_NOTIONAL) {
+      s.dropReason = "名义低于币安最小下单额 5.1U";
       dropped.push(s);
+      continue;
     }
+    let m = s.notional / s.lev;
+    if (usedMargin + m > capLimit) {
+      const avail = capLimit - usedMargin;
+      // 试着缩减到装得下
+      if (resizeToMargin(s, avail)) {
+        s.adjusted = true;
+        s.availMargin = avail;
+        m = s.margin;
+      } else {
+        s.dropReason = "可用保证金只剩 " + Math.max(avail, 0).toFixed(2) +
+          "U，装不下最小下单额";
+        dropped.push(s);
+        continue;
+      }
+    }
+    usedMargin += m;
+    s.margin = m;
+    keep.push(s);
   }
   sigs.length = 0;
   sigs.push(...keep);
   rows._dropped = dropped;
+  rows._marginInfo = { held: heldMargin, heldCount: heldCount, capLimit: capLimit,
+                       free: Math.max(capLimit - heldMargin, 0), used: usedMargin };
 
   // 处理已有持仓：更新移动止损（所有持仓都要显示，不管有没有信号）
   const holdings = [];
@@ -1247,6 +1276,25 @@ function buildHoldCards(list, title) {
   return h;
 }
 
+/* 把仓位缩减到「剩余保证金装得下」的大小 */
+function resizeToMargin(s, avail) {
+  if (!(avail > 0)) return false;
+  let notional = avail * s.lev;
+  const step = STEP[s.sym] || 0.001;
+  const dec = String(step).split(".")[1] ? String(step).split(".")[1].length : 0;
+  let qty = Math.floor((notional / s.cur) / step) * step;
+  qty = +qty.toFixed(dec);
+  if (!(qty > 0)) return false;
+  s.qty = qty;
+  s.notional = qty * s.cur;
+  s.risk = s.notional * (s.dist / 100);
+  s.riskPct = (s.risk / CFG.CAPITAL) * 100;
+  s.margin = s.notional / s.lev;
+  s.tooSmall = s.notional < MIN_NOTIONAL;
+  s.overRisk = s.riskPct > CFG.RISK * 100 + 0.5;
+  return !s.tooSmall;
+}
+
 function render(rows, sigs) {
   let h = "";
 
@@ -1310,9 +1358,11 @@ function render(rows, sigs) {
          '<br><span style="font-size:12px;color:#8b6b6b">检查手机网络，或换个时间再试</span></div>';
   }
   if (rows._dropped && rows._dropped.length) {
-    h += '<div class="warn">保证金不够，跳过：' +
-         rows._dropped.map(s => s.sym).join("、") +
-         '<br><span style="opacity:.75">同时开仓占用保证金不能超过本金</span></div>';
+    h += '<div class="warn">跳过 ' +
+         rows._dropped.map(s => s.sym + "（" + (s.dropReason || "保证金不够") + "）").join("、") +
+         (rows._marginInfo ? '<br><span style="opacity:.75">已有 ' + rows._marginInfo.heldCount +
+           ' 个仓占用 ' + rows._marginInfo.held.toFixed(2) + 'U，可用 ' +
+           rows._marginInfo.free.toFixed(2) + 'U</span>' : '') + '</div>';
   }
 
   if (!sigs.length) {
@@ -1335,6 +1385,9 @@ function render(rows, sigs) {
         '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
         '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
         '</div>' +
+        (s.adjusted ? '<div class="warn" style="background:#141008;border-color:#3a2e10;color:#f0be5a">' +
+          '📐 可用保证金不够，已自动缩减到 ' + s.notional.toFixed(2) + 'U' +
+          '（风险 ' + s.riskPct.toFixed(1) + '%）</div>' : '') +
         (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
         (s.overRisk && !s.tooSmall ? '<div class="warn">⚠️ 止损太宽，1x 也要亏 ' + s.riskPct.toFixed(1) + '%（超过目标 5%）</div>' : '') +
         '<div class="levrow" data-sym="' + s.sym + '">' +
