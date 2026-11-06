@@ -207,7 +207,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v4.8 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v4.9 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -475,7 +475,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v4.8";   // 页面版本，用来判断是不是旧缓存
+const VER = "v4.9";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1455,13 +1455,35 @@ function render(rows, sigs) {
 /* ============ 山寨币风险 / 观察名单 ============ */
 let ALT = null;
 
+let ALT_AT = 0;      // 上次成功拉取山寨数据的时间
+
 async function loadAlts() {
   try {
     const r = await fetch("alt_watch.json?t=" + Date.now());
     if (!r.ok) return null;
+    ALT_AT = Date.now();
     return await r.json();
   } catch (e) { return null; }
 }
+
+/* 回到页面时，如果数据超过 3 分钟就自动重拉 */
+async function refreshAltsIfStale(maxAgeMs) {
+  const age = Date.now() - ALT_AT;
+  if (ALT && ALT_AT && age < (maxAgeMs || 180000)) return false;
+  ALT = null;
+  ALT = await loadAlts();
+  if (window._last) render(window._last.rows, window._last.sigs);
+  return true;
+}
+
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "visible") {
+    refreshAltsIfStale(180000);
+  }
+});
+window.addEventListener("focus", function () {
+  if (Date.now() - ALT_AT > 180000) refreshAltsIfStale(180000);
+});
 
 /* ============ 激进模式（满仓高杠杆）============ */
 /* 用户明确要求：风险提示改成「最高全亏」，目标 10% 波动翻倍
@@ -1648,6 +1670,14 @@ async function renderAlts() {
   else box.innerHTML = altSigHTML();
 }
 
+async function forceRefreshAlts(el) {
+  const old = el ? el.textContent : "";
+  if (el) el.textContent = "刷新中…";
+  const ok = await refreshAltsIfStale(0);
+  if (el) el.textContent = ok ? "✅ 已刷新" : "✅ 已是最新";
+  setTimeout(function () { if (el) el.textContent = old || "🔄 立即刷新数据"; }, 1600);
+}
+
 /* ---- 山寨 · 涨跌子页 ---- */
 function altChgHTML() {
   const gain = ALT.gainers || [], lose = ALT.losers || [];
@@ -1676,7 +1706,15 @@ function altChgHTML() {
 /* ---- 山寨 · 信号子页（做多 + 做空 归在一个大卡片里）---- */
 function altSigHTML() {
   const pbs = ALT.pullback || [], shorts = ALT.short || [];
-  let h = '<h3>顶口 · 信号 · ' + (ALT.updated || "") + '</h3>';
+  const ageMin = ALT_AT ? Math.round((Date.now() - ALT_AT) / 60000) : -1;
+  const freshTxt = ageMin < 0 ? "" :
+    (ageMin <= 5 ? '<span style="color:#19c07a">刚刚同步</span>' :
+      '<span style="color:' + (ageMin > 150 ? "#ff6b7d" : "#f0be5a") + '">' +
+      ageMin + ' 分钟前拉取</span>');
+  let h = '<h3>顶口 · 信号 · ' + (ALT.updated || "") +
+    '　' + freshTxt + '</h3>';
+  h += '<div class="acts" style="margin-bottom:10px">' +
+    '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a></div>';
   h += '<div class="tideintro">🎯 <b>顶口</b>：专门做山寨币的「顶」和「口」。' +
        '暴涨 30%+ → 在顶部做空（赌它回落）；回落 15%+ 后止跌回升 → 在口上做多（赌它再涨）。' +
        '两条腿都持 20 天。</div>';
