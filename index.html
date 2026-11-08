@@ -105,6 +105,16 @@ background:#0a0c10;color:#7d8699;font-size:13px;font-weight:600;font-family:inhe
 .levbtn.on{border-color:#8ab4ff;background:#16224a;color:#8ab4ff}
 .levbtn.dis{opacity:.3}
 .levbtn.hint{flex:0 0 auto;min-width:52px;font-size:12px;border-style:dashed}
+.levx{display:flex;gap:5px;flex:1;min-width:98px;align-items:center}
+.levx input{flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid #2a3448;background:#0a0c10;
+color:#fff;font-size:12.5px;font-family:inherit;text-align:center;font-variant-numeric:tabular-nums}
+.levx input:focus{outline:none;border-color:#8ab4ff}
+.levx button{flex:0 0 auto;padding:7px 10px;border-radius:8px;border:1px solid #2a3448;background:#1c2333;
+color:#8ab4ff;font-size:12px;font-weight:600;font-family:inherit}
+.bktext{width:100%;height:132px;margin:8px 0 6px;padding:10px;border-radius:10px;border:1px solid #2a3448;
+background:#0a0c10;color:#c9cfdd;font-family:ui-monospace,Menlo,Consolas,monospace;
+font-size:11px;line-height:1.5;resize:none;word-break:break-all;white-space:pre-wrap}
+.bktext:focus{outline:none;border-color:#8ab4ff}
 .movbox{background:#12151d;border:1px solid #202633;border-radius:13px;padding:13px 15px;margin-bottom:14px}
 .movhead{font-size:12px;color:#5f6779;margin-bottom:8px;font-weight:600}
 .movgrid{display:flex;flex-direction:column;gap:5px}
@@ -213,7 +223,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v5.0 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v5.1 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -431,15 +441,38 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
       </div>
     </div>
     <div class="mrow">
-      <label>或自定义（1~125）</label>
-      <input id="c-levcustom" type="number" step="1" inputmode="numeric" placeholder="留空 = 用上面的选择"
-             oninput="onLevCustom()">
+      <label>或自定义（1~125，可带小数）</label>
+      <input id="c-levcustom" type="number" step="0.1" min="0.1" max="125" inputmode="decimal"
+             placeholder="留空 = 用上面的选择" oninput="onLevCustom()">
     </div>
     <div class="mmsg" id="c-msg"></div>
     <div class="macts">
       <button onclick="cClose()">取消</button>
       <button class="p" onclick="cSave()">确认</button>
     </div>
+  </div>
+</div>
+
+<!-- 数据备份 / 恢复 -->
+<div class="modal" id="bkmodal">
+  <div class="mbox" style="max-width:360px;max-height:88vh;overflow:auto">
+    <div class="mhead" id="bk-title">数据备份</div>
+    <div class="mmsg" id="bk-msg"></div>
+    <textarea id="bk-text" class="bktext" spellcheck="false" autocapitalize="off" autocomplete="off"
+      placeholder="粘贴备份内容到这里"></textarea>
+    <div class="macts">
+      <button onclick="bkCopy(this)">复制</button>
+      <button onclick="bkFile(this)">存成文件</button>
+    </div>
+    <div class="macts" style="margin-top:8px">
+      <button onclick="bkPick()">选文件</button>
+      <button class="p" onclick="bkImport()">导入</button>
+    </div>
+    <div class="macts" style="margin-top:8px">
+      <button onclick="bkClose()">关闭</button>
+    </div>
+    <input type="file" id="bk-file" accept=".json,application/json" style="display:none"
+      onchange="bkReadFile(event)">
   </div>
 </div>
 
@@ -481,7 +514,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v5.0";   // 页面版本，用来判断是不是旧缓存
+const VER = "v5.1";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1140,6 +1173,30 @@ function setSigLev(sym, lev) {
   render(window._last.rows, list);
 }
 
+/* 自定义杠杆：任意值，可以带小数（1 ~ 125） */
+function setSigLevCustom(sym) {
+  const el = $("lvx-" + sym);
+  const v = el ? parseFloat(el.value) : NaN;
+  if (!isFinite(v) || v <= 0) { alert("先填个杠杆数，比如 1、2.5、8"); return; }
+  if (v > 125) { alert("币安最高 125x"); return; }
+  setSigLev(sym, v);
+}
+
+/* 顶口单币杠杆 */
+function setAltLev(sym, v) {
+  if (v === 0) { delete ALT_LEV[sym]; }
+  else if (isFinite(v) && v > 0 && v <= 125) { ALT_LEV[sym] = v; }
+  else { alert("杠杆填 1 ~ 125"); return; }
+  saveAltLev();
+  if (window._last) render(window._last.rows, window._last.sigs);
+}
+function setAltLevCustom(sym) {
+  const el = $("alv-" + sym);
+  const v = el ? parseFloat(el.value) : NaN;
+  if (!isFinite(v) || v <= 0 || v > 125) { alert("杠杆填 1 ~ 125，可以带小数"); return; }
+  setAltLev(sym, v);
+}
+
 /* 保证金占用统计（用于 70% 上限提醒） */
 function marginStat(extra) {
   const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
@@ -1400,6 +1457,7 @@ function render(rows, sigs) {
               '>' + L + 'x</button>';
           }).join('') +
           '<button class="levbtn hint" onclick="setSigLev(\'' + s.sym + '\',0)">自动</button>' +
+          '<span class="levx"><input id="lvx-' + s.sym + '" type="number" step="0.1" min="1" max="125" inputmode="decimal" placeholder="自定"><button onclick="setSigLevCustom(\'' + s.sym + '\')">用</button></span>' +
         '</div>' +
         '<div class="acts">' +
         '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
@@ -1462,6 +1520,10 @@ function render(rows, sigs) {
 let ALT = null;
 
 let ALT_AT = 0;      // 上次成功拉取山寨数据的时间
+/* 顶口每个币单独选的杠杆，默认 1x。存在本地，跟着备份一起走 */
+let ALT_LEV = {};
+try { ALT_LEV = JSON.parse(localStorage.getItem("altlev") || "{}") || {}; } catch (e) { ALT_LEV = {}; }
+function saveAltLev() { try { localStorage.setItem("altlev", JSON.stringify(ALT_LEV)); } catch (e) {} }
 
 async function loadAlts() {
   try {
@@ -1720,7 +1782,8 @@ function altSigHTML() {
   let h = '<h3>顶口 · 信号 · ' + (ALT.updated || "") +
     '　' + freshTxt + '</h3>';
   h += '<div class="acts" style="margin-bottom:10px">' +
-    '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a></div>';
+    '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a>' +
+    '<a onclick="openBackup()">💾 备份 / 恢复</a></div>';
   h += '<div class="tideintro">🎯 <b>顶口</b>：专门做山寨币的「顶」和「口」。' +
        '暴涨 30%+ → 在顶部做空（赌它回落）；回落 15%+ 后止跌回升 → 在口上做多（赌它再涨）。' +
        '两条腿都持 20 天。</div>';
@@ -1767,6 +1830,8 @@ function altSigHTML() {
   if (shorts.length) {
     shorts.forEach(a => {
       const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
+      const lev = ALT_LEV[a.sym] || 1;
+      const mg = posUsd / lev;
       const qty = posUsd / a.price;
       const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
       h += '<div class="scard">' +
@@ -1774,14 +1839,24 @@ function altSigHTML() {
         '<span class="bnok">币安合约</span>' +
         '<span class="sbadge">暴涨 +' + a.pump_pct + '%</span></div>' +
         '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　仓位 <b>' + posUsd.toFixed(2) + 'U</b>（1x）</div>' +
-        '<div class="aline">数量 <b>' + qs + '</b>　持有 <b>20 天</b>　不设止损</div>' +
+        '　名义 <b>' + posUsd.toFixed(2) + 'U</b>　杠杆 <b class="lev">' + lev + 'x</b></div>' +
+        '<div class="aline">保证金 <b>' + mg.toFixed(2) + 'U</b>　数量 <b>' + qs + '</b>　持有 <b>20 天</b></div>' +
         '<div class="aline" style="font-size:11.5px;color:#5f6779">前20日 ' + a.prior20 +
-        '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '</div>' +
+        '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '　不设止损</div>' +
+        (lev > 1 ? '<div class="warn" style="background:#160b0d;border-color:#3a1a1f;color:#ff9aa6">' +
+          '⚠️ 这单你调到了 ' + lev + 'x。69% 胜率是 1x 前提，超过 1x 结论不成立</div>' : '') +
+        '<div class="levrow">' +
+          [1, 2, 3].map(function (L) {
+            return '<button class="levbtn' + (Math.abs(lev - L) < 1e-9 ? ' on' : '') +
+              '" onclick="setAltLev(\'' + a.sym + '\',' + L + ')">' + L + 'x</button>';
+          }).join('') +
+          '<span class="levx"><input id="alv-' + a.sym + '" type="number" step="0.1" min="1" max="125" ' +
+          'inputmode="decimal" placeholder="自定"><button onclick="setAltLevCustom(\'' + a.sym + '\')">用</button></span>' +
+        '</div>' +
         '<div class="acts">' +
         '<a class="p" style="background:#e8484f;color:#fff" ' +
-        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this)">📋 复制参数</a>' +
-        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\')">我已开空</a></div>' +
+        'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this,' + lev + ')">📋 复制参数</a>' +
+        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',' + lev + ')">我已开空</a></div>' +
         '</div>';
     });
   } else {
@@ -1790,6 +1865,16 @@ function altSigHTML() {
   h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
        '<br>⚠️ 小币深度差，用限价单。</div>';
   h += '</div>';
+
+  /* —— 数据备份 / 迁移 —— */
+  h += '<div class="bigcard" style="margin-top:14px">' +
+       '<div class="bchead"><span>💾 数据备份 / 换手机迁移</span></div>' +
+       '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.7;margin-bottom:10px">' +
+       '导出会打包全部本地数据：<b>持仓 · 本金 · 风险比例 · 杠杆 · 结算记录</b>。<br>' +
+       '从浏览器搬到 App，或者换手机，就靠这个。</div>' +
+       '<div class="acts">' +
+       '<a class="p" onclick="openBackup()">📤 一键导出</a>' +
+       '<a onclick="openBackup(true)">📥 一键导入</a></div></div>';
   return h;
 }
 
@@ -2758,13 +2843,19 @@ function modalSave() {
 }
 
 /* 山寨币做空：直接记录持仓 */
-function markAlt(sym, price, usd, qty, el) {
+function markAlt(sym, price, usd, qty, lev) {
+  lev = (isFinite(lev) && lev > 0 && lev <= 125) ? lev : 1;
   if (loadPos(sym)) { alert(sym + " 已经有持仓记录了"); return; }
-  if (!checkMarginCap(usd, sym + " 空单")) return;
-  if (!confirm("确认已在币安开好 " + sym + " 的空单？\n\n仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
+  const mg = usd / lev;
+  if (!checkMarginCap(mg, sym + " 空单")) return;
+  if (lev > 1 && !confirm("⚠️ 这单用 " + lev + "x\n\n" +
+      "69% 胜率、中位 +20.6% 是 1x 无杠杆的回测结果。\n" +
+      "杠杆越高，暴涨 20% 就可能把你这笔打掉。\n\n确定用 " + lev + "x 开？")) return;
+  if (!confirm("确认已在币安开好 " + sym + " 的空单？\n\n名义 " + usd.toFixed(2) +
+               "U\n杠杆 " + lev + "x\n保证金 " + mg.toFixed(2) + "U\n数量 " + qty)) return;
   savePos(sym, {
     dir: "S", entry: price, sl: price * 2, ext: price,
-    qty: parseFloat(qty), lev: 1, margin: usd, marginMode: "isolated",
+    qty: parseFloat(qty), lev: lev, margin: mg, marginMode: "isolated",
     date: new Date().toISOString().slice(0, 10),
     alt: true,
   });
@@ -2806,6 +2897,144 @@ function exportPos(el) {
   } else { fallbackCopy(txt, done); }
 }
 
+/* ============ 数据备份 / 恢复（全部本地数据打包） ============ */
+const BK_VER = 1;
+const BK_EXTRA = ["capital", "riskpct", "levfixed", "risk", "aggmargin",
+                  "welcomeDone", "tab", "settlements", "altlev"];
+
+function bkManaged(k) {
+  return k.indexOf("pos_") === 0 || k.indexOf("sub_") === 0 || BK_EXTRA.indexOf(k) >= 0;
+}
+
+function bkGather() {
+  const data = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && bkManaged(k)) data[k] = localStorage.getItem(k);
+    }
+  } catch (e) {}
+  return data;
+}
+
+function openBackup(isImport) {
+  const ta = $("bk-text"), msg = $("bk-msg");
+  if (!ta || !msg) return;
+  msg.classList.remove("bad");
+  if (isImport) {
+    ta.value = "";
+    $("bk-title").textContent = "📥 导入数据";
+    msg.innerHTML = "把备份内容<b>粘贴</b>到上面的框里（长按 → 粘贴），或者点「选文件」。<br>" +
+      "导入完页面会自动重开。";
+  } else {
+    const data = bkGather();
+    let n = 0;
+    Object.keys(data).forEach(k => { if (k.indexOf("pos_") === 0) n++; });
+    ta.value = JSON.stringify({
+      app: "signal", ver: BK_VER, at: new Date().toISOString(),
+      base: BASE_CAP, positions: n, data: data
+    });
+    $("bk-title").textContent = "📤 已打包 · 持仓 " + n + " 条";
+    msg.innerHTML = "点「复制」→ 到另一个端（App 或浏览器）粘贴导入。<br>" +
+      "<span style='color:#5f6779'>共 " + ta.value.length + " 字符，" +
+      (data ? Object.keys(data).length : 0) + " 项</span>";
+  }
+  $("bkmodal").classList.add("on");
+  setTimeout(() => { try { ta.focus(); ta.setSelectionRange(0, 0); ta.scrollTop = 0; } catch (e) {} }, 120);
+}
+
+function bkClose() { const m = $("bkmodal"); if (m) m.classList.remove("on"); }
+
+function bkCopy(btn) {
+  const t = $("bk-text").value.trim();
+  if (!t) { alert("框里没有内容"); return; }
+  const done = () => {
+    if (!btn) return;
+    const o = btn.textContent;
+    btn.textContent = "✅ 已复制";
+    setTimeout(() => { btn.textContent = o; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(() => fallbackCopy(t, done));
+  } else { fallbackCopy(t, done); }
+}
+
+function bkFile(btn) {
+  const t = $("bk-text").value.trim();
+  if (!t) { alert("框里没有内容"); return; }
+  const d = new Date();
+  const pad = (n) => ("0" + n).slice(-2);
+  const name = "signal-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json";
+  try {
+    const blob = new Blob([t], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 1500);
+    if (btn) { const o = btn.textContent; btn.textContent = "✅ 已存"; setTimeout(() => { btn.textContent = o; }, 1600); }
+  } catch (e) {
+    alert("这个环境不让存文件，用「复制」");
+  }
+}
+
+function bkPick() { const f = $("bk-file"); if (f) f.click(); }
+
+function bkReadFile(e) {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    $("bk-text").value = String(r.result || "").trim();
+    $("bk-msg").textContent = "已读入 " + f.name + "，点「导入」";
+  };
+  r.onerror = () => alert("读文件失败");
+  r.readAsText(f);
+  e.target.value = "";
+}
+
+function bkImport() {
+  const raw = $("bk-text").value.trim();
+  if (!raw) { alert("先把备份内容粘贴进来"); return; }
+  let pack = null;
+  try { pack = JSON.parse(raw); } catch (e) {
+    alert("这段内容不是有效的备份（解析失败）\n\n多半是没复制全，重新复制一次");
+    return;
+  }
+  if (!pack || pack.app !== "signal" || !pack.data) {
+    alert("这不像本工具的备份文件");
+    return;
+  }
+  const data = pack.data;
+  let cur = 0;
+  try { cur = Object.keys(localStorage).filter(k => k.indexOf("pos_") === 0).length; } catch (e) {}
+  let mode = "replace";
+  if (cur > 0) {
+    const merge = confirm("本机已经有 " + cur + " 条持仓。\n\n" +
+      "「确定」= 合并：保留本机的，只补备份里有、本机没有的\n" +
+      "「取消」= 覆盖：清空本机，全部换成备份的");
+    mode = merge ? "merge" : "replace";
+    if (!merge && !confirm("确定要清空本机现有的 " + cur + " 条持仓，换成备份里的内容？")) return;
+  }
+  try {
+    if (mode === "replace") {
+      Object.keys(localStorage).forEach(k => { if (bkManaged(k)) localStorage.removeItem(k); });
+    }
+    let w = 0;
+    Object.keys(data).forEach(k => {
+      if (mode === "merge" && localStorage.getItem(k) !== null) return;
+      localStorage.setItem(k, data[k]);
+      w++;
+    });
+    alert("导入完成，写入 " + w + " 项。\n页面马上重开。");
+    setTimeout(() => { try { location.reload(); } catch (e) {} }, 300);
+  } catch (e) {
+    alert("写入失败：" + e.message);
+  }
+}
+
 /* 记录回踩做多的仓位 */
 function markPull(sym, price, stop, qty, usd) {
   if (loadPos(sym)) { alert(sym + " 已经有持仓记录了，可在持仓页修改"); return; }
@@ -2840,9 +3069,11 @@ function copyPullback(sym, price, stop, qty, usd, el) {
 }
 
 /* 复制做空参数 */
-function copyShort(sym, price, usd, qty, el) {
-  const txt = sym + " 做空\n现价 " + price + "\n仓位 " + usd.toFixed(2) + "U（1x）\n数量 " + qty +
-              "\n不设止损，持有 20 天";
+function copyShort(sym, price, usd, qty, el, lev) {
+  lev = (isFinite(lev) && lev > 0) ? lev : 1;
+  const txt = sym + " 做空\n现价 " + price + "\n名义 " + usd.toFixed(2) + "U\n杠杆 " + lev + "x" +
+              (lev > 1 ? "（保证金 " + (usd / lev).toFixed(2) + "U）" : "") +
+              "\n数量 " + qty + "\n不设止损，持有 20 天";
   const done = () => {
     if (el) { const o = el.textContent; el.textContent = "✅ 已复制"; setTimeout(() => el.textContent = o, 1600); }
   };
@@ -2989,5 +3220,6 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
   });
 }
 </script>
+
 </body>
 </html>
