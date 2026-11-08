@@ -219,11 +219,15 @@ color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
 border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
+.quickrow{display:flex;gap:8px;margin:14px 0 2px}
+.quickrow button{flex:1;padding:12px 3px;border-radius:12px;border:1px solid #2a3448;
+background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inherit}
+.quickrow button:active{transform:scale(.97)}
 </style>
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v5.2 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v5.3 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -236,6 +240,14 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <button class="btn" id="go" onclick="doRefresh()">🔍 检查信号</button>
 <div class="hint" id="hint">每天点一次，30 秒看结果</div>
+
+<div class="quickrow">
+  <button onclick="openBackup()">💾 备份</button>
+  <button onclick="openBackup(true)">📥 恢复</button>
+  <button onclick="csvPick()">📄 账单导入</button>
+</div>
+<input type="file" id="csv-file" accept=".csv,.txt,text/csv,text/plain"
+  style="display:none" onchange="csvRead(event)">
 
 <div class="tabs">
   <button id="tab-main" class="on" onclick="setTAB('main')">主流</button>
@@ -476,6 +488,17 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
   </div>
 </div>
 
+<!-- 账单导入预览 -->
+<div class="modal" id="csvmodal">
+  <div class="mbox" style="max-width:360px;max-height:88vh;overflow:auto">
+    <div class="mhead" id="csv-title">账单导入</div>
+    <div id="csv-body"></div>
+    <div class="macts" style="margin-top:12px">
+      <button onclick="csvClose()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 调整保证金弹窗 -->
 <div class="modal" id="mmodal">
   <div class="mbox">
@@ -514,7 +537,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v5.2";   // 页面版本，用来判断是不是旧缓存
+const VER = "v5.3";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1722,39 +1745,9 @@ function copyAgg(sym, dir, price, stop, qty, margin, notional, el) {
   } else { fallbackCopy(txt, done); }
 }
 
-/* ============ 顶口 · 备份子页 ============ */
+/* ============ 数据备份 / 账单导入 ============ */
 
 let CSV_DRAFT = null;      // 解析待确认的持仓
-
-function altBkHTML() {
-  let h = '<h3>顶口 · 备份 / 导入</h3>';
-
-  /* --- 本地数据备份 --- */
-  h += '<div class="bigcard">';
-  h += '<div class="bchead"><span>💾 本地数据</span></div>';
-  h += '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.75;margin-bottom:10px">' +
-       '打包全部本地数据：<b>持仓 · 本金 · 风险比例 · 杠杆 · 结算记录</b>。<br>' +
-       '换手机、或者从浏览器搬到 App，靠这个。</div>';
-  h += '<div class="acts">' +
-       '<a class="p" onclick="openBackup()">📤 导出</a>' +
-       '<a onclick="openBackup(true)">📥 恢复</a></div>';
-  h += '</div>';
-
-  /* --- 币安账单导入持仓 --- */
-  h += '<div class="bigcard" style="border-color:#1e2f4a">';
-  h += '<div class="bchead"><span style="color:#8ab4ff">📥 从币安账单导入持仓</span></div>';
-  h += '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.75;margin-bottom:10px">' +
-       '币安 App → 合约 → 右上「…」→ <b>导出记录</b>，导出「成交记录」的 CSV，把文件选进来。<br>' +
-       '我会按币种合并买卖，算出现在的净持仓和均价，<b>先给你看一遍，确认了才写进去</b>。</div>';
-  h += '<div class="acts"><a onclick="csvPick()">📄 选择 CSV 文件</a>';
-  if (CSV_DRAFT) h += '<a onclick="csvClear()">✖ 清掉重来</a>';
-  h += '</div>';
-  h += '<input type="file" id="csv-file" accept=".csv,.txt,text/csv,text/plain" ' +
-       'style="display:none" onchange="csvRead(event)">';
-  if (CSV_DRAFT) h += csvDraftHTML();
-  h += '</div>';
-  return h;
-}
 
 function csvDraftHTML() {
   const d = CSV_DRAFT;
@@ -1807,7 +1800,20 @@ function csvToggle(i, v) {
 }
 
 function csvPick() { const f = $("csv-file"); if (f) f.click(); }
-function csvClear() { CSV_DRAFT = null; renderAlts(); }
+function csvClear() { CSV_DRAFT = null; csvClose(); }
+
+function csvOpen() {
+  if (!CSV_DRAFT) return;
+  const b = $("csv-body");
+  if (!b) return;
+  b.innerHTML = csvDraftHTML();
+  const t = $("csv-title");
+  if (t) t.textContent = CSV_DRAFT.err ? "账单导入 · 没认出来" : "账单导入 · 确认";
+  const m = $("csvmodal");
+  if (m) m.classList.add("on");
+}
+
+function csvClose() { const m = $("csvmodal"); if (m) m.classList.remove("on"); }
 
 function csvRead(e) {
   const f = e.target.files && e.target.files[0];
@@ -1818,7 +1824,7 @@ function csvRead(e) {
     try { d = parseTradeCSV(String(r.result || "")); }
     catch (err) { d = { err: err.message, rows: [] }; }
     CSV_DRAFT = d;
-    renderAlts();
+    csvOpen();
   };
   r.onerror = function () { alert("读文件失败"); };
   r.readAsText(f);
@@ -1841,8 +1847,9 @@ function csvApply() {
     w++;
   });
   CSV_DRAFT = null;
+  csvClose();
   alert("导入完成，写入 " + w + " 条。\n切到「持仓」页看看对不对。");
-  renderAlts();
+  if (window._last) render(window._last.rows, window._last.sigs);
 }
 
 /* ---- CSV 解析 ---- */
@@ -1984,8 +1991,6 @@ async function renderAlts() {
   const box = $("alts");
   if (!box) return;
   if (TAB !== "alt") { box.innerHTML = ""; return; }
-  // 备份页不依赖行情数据，没拉到山寨数据也要能进
-  if (SUB === "bk") { box.innerHTML = altBkHTML(); return; }
   if (!ALT) ALT = await loadAlts();
   if (!ALT) {
     box.innerHTML = '<div class="err">山寨数据还没生成（每 2 小时更新一次）</div>';
@@ -2041,8 +2046,7 @@ function altSigHTML() {
   let h = '<h3>顶口 · 信号 · ' + (ALT.updated || "") +
     '　' + freshTxt + '</h3>';
   h += '<div class="acts" style="margin-bottom:10px">' +
-    '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a>' +
-    '<a onclick="setSUB(\'bk\')">💾 备份 / 导入</a></div>';
+    '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a></div>';
   h += '<div class="tideintro">🎯 <b>顶口</b>：专门做山寨币的「顶」和「口」。' +
        '暴涨 30%+ → 在顶部做空（赌它回落）；回落 15%+ 后止跌回升 → 在口上做多（赌它再涨）。' +
        '两条腿都持 20 天。</div>';
@@ -2667,8 +2671,7 @@ const SUBS = {
     { k: "sig",  t: "信号" },
     { k: "chg",  t: "涨跌" },
     { k: "watch", t: "观察" },
-    { k: "agg",  t: "⚡激进" },
-    { k: "bk",   t: "💾 备份" }
+    { k: "agg",  t: "⚡激进" }
   ],
   pos: []
 };
