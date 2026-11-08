@@ -3090,31 +3090,51 @@ function openExWeb(url, P) {
   }
 }
 
+/* 直接走 Capacitor 底层 nativePromise，绕开 Plugins 代理有没有注册的问题 */
+function capNative(plugin, method, opts) {
+  const C = window.Capacitor;
+  if (!C) return null;
+  try {
+    if (typeof C.nativePromise === "function") {
+      return C.nativePromise(plugin, method, opts);
+    }
+  } catch (e) {}
+  try {
+    const P = C.Plugins && C.Plugins[plugin];
+    if (P && typeof P[method] === "function") return P[method](opts);
+  } catch (e) {}
+  return null;
+}
+
 function openEx(sym) {
   const url = exLink(sym);
   const C = window.Capacitor;
-  const P = C && C.Plugins;
+  const isNative = !!(C && C.isNative);
 
-  /* 1) 原生插件：按包名直接拉起 App，不依赖深链 */
-  if (P && P.AppLaunch && P.AppLaunch.openApp) {
-    P.AppLaunch.openApp({ pkgs: EX_PKGS[EXCH] || [] }).then(function (r) {
+  const p = capNative("AppLaunch", "openApp", { pkgs: EX_PKGS[EXCH] || [] });
+  if (p && typeof p.then === "function") {
+    p.then(function (r) {
       if (r && r.ok) return;
-      const sc = EX_SCHEME[EXCH];
-      if (sc && P.AppLauncher && P.AppLauncher.canOpenUrl) {
-        P.AppLauncher.canOpenUrl({ url: sc }).then(function (c) {
-          if (c && c.value) {
-            try { P.AppLauncher.openUrl({ url: sc }); return; } catch (e) {}
-          }
-          openExWeb(url, P);
-        }).catch(function () { openExWeb(url, P); });
-      } else {
-        openExWeb(url, P);
+      if (isNative) {
+        alert("没打开币安\n\n包名：" + JSON.stringify(EX_PKGS[EXCH] || []) +
+              "\n返回：" + JSON.stringify(r) +
+              "\n\n这就说明是系统不让我启动它");
       }
-    }).catch(function () { openExWeb(url, P); });
+      openExWeb(url, C && C.Plugins);
+    }).catch(function (e) {
+      if (isNative) {
+        alert("原生调用失败\n\n" + (e && e.message ? e.message : String(e)));
+      }
+      openExWeb(url, C && C.Plugins);
+    });
     return false;
   }
 
-  openExWeb(url, P);
+  if (isNative) {
+    alert("原生桥没响应\n\nCapacitor: " + (typeof C) +
+          "\nPlugins: " + (C && C.Plugins ? Object.keys(C.Plugins).join(",") : "无"));
+  }
+  openExWeb(url, C && C.Plugins);
   return false;
 }
 
