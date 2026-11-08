@@ -3107,38 +3107,46 @@ function openEx(sym) {
   const url = exLink(sym);
   const C = window.Capacitor;
   const isNative = !!(C && C.isNative);
+  const P = (C && C.Plugins) || {};
 
-  if (!isNative) {
-    alert("诊断（这次只是查问题）\n\n" +
-          "Capacitor: " + (typeof C) + "\n" +
-          "isNative: " + (C ? C.isNative : "无") + "\n" +
-          "UA: " + String(navigator.userAgent).slice(0, 70));
-  }
+  const info = function () {
+    let headers = [];
+    try {
+      headers = (C.PluginHeaders || []).map(function (h) { return h.name; });
+    } catch (e) {}
+    return "Plugins: " + Object.keys(P).join(",") +
+           "\nHeaders: " + headers.join(",");
+  };
 
-  const p = capNative("AppLaunch", "openApp", { pkgs: EX_PKGS[EXCH] || [] });
-  if (p && typeof p.then === "function") {
-    p.then(function (r) {
+  /* 试私有 scheme，成不成看对方 */
+  const tryScheme = function () {
+    if (P.AppLauncher && typeof P.AppLauncher.openUrl === "function") {
+      const sc = EX_SCHEME[EXCH];
+      if (sc) {
+        try {
+          P.AppLauncher.openUrl({ url: sc }).catch(function () { openExWeb(url, P); });
+          return true;
+        } catch (e) {}
+      }
+    }
+    return false;
+  };
+
+  if (P.AppLaunch && typeof P.AppLaunch.openApp === "function") {
+    P.AppLaunch.openApp({ pkgs: EX_PKGS[EXCH] || [] }).then(function (r) {
       if (r && r.ok) return;
-      if (isNative) {
-        alert("没打开币安\n\n包名：" + JSON.stringify(EX_PKGS[EXCH] || []) +
-              "\n返回：" + JSON.stringify(r) +
-              "\n\n这就说明是系统不让我启动它");
-      }
-      openExWeb(url, C && C.Plugins);
+      if (isNative) alert("包名没匹配到\n\n包名：" + JSON.stringify(EX_PKGS[EXCH] || []) +
+                          "\n返回：" + JSON.stringify(r) + "\n" + info());
+      if (!tryScheme()) openExWeb(url, P);
     }).catch(function (e) {
-      if (isNative) {
-        alert("原生调用失败\n\n" + (e && e.message ? e.message : String(e)));
-      }
-      openExWeb(url, C && C.Plugins);
+      if (isNative) alert("原生调用失败\n\n" + (e && e.message ? e.message : String(e)) + "\n\n" + info());
+      if (!tryScheme()) openExWeb(url, P);
     });
     return false;
   }
 
-  if (isNative) {
-    alert("原生桥没响应\n\nCapacitor: " + (typeof C) +
-          "\nPlugins: " + (C && C.Plugins ? Object.keys(C.Plugins).join(",") : "无"));
-  }
-  openExWeb(url, C && C.Plugins);
+  if (isNative) alert("没有 AppLaunch\n\n" + info());
+  if (!tryScheme()) openExWeb(url, P);
   return false;
 }
 
