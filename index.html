@@ -223,7 +223,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 </head>
 <body>
 <h1>今日信号</h1>
-<div class="s" id="sub">v5.1 · Donchian 20 · 日线</div>
+<div class="s" id="sub">v5.2 · Donchian 20 · 日线</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -514,7 +514,7 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v5.1";   // 页面版本，用来判断是不是旧缓存
+const VER = "v5.2";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1722,11 +1722,270 @@ function copyAgg(sym, dir, price, stop, qty, margin, notional, el) {
   } else { fallbackCopy(txt, done); }
 }
 
+/* ============ 顶口 · 备份子页 ============ */
+
+let CSV_DRAFT = null;      // 解析待确认的持仓
+
+function altBkHTML() {
+  let h = '<h3>顶口 · 备份 / 导入</h3>';
+
+  /* --- 本地数据备份 --- */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>💾 本地数据</span></div>';
+  h += '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.75;margin-bottom:10px">' +
+       '打包全部本地数据：<b>持仓 · 本金 · 风险比例 · 杠杆 · 结算记录</b>。<br>' +
+       '换手机、或者从浏览器搬到 App，靠这个。</div>';
+  h += '<div class="acts">' +
+       '<a class="p" onclick="openBackup()">📤 导出</a>' +
+       '<a onclick="openBackup(true)">📥 恢复</a></div>';
+  h += '</div>';
+
+  /* --- 币安账单导入持仓 --- */
+  h += '<div class="bigcard" style="border-color:#1e2f4a">';
+  h += '<div class="bchead"><span style="color:#8ab4ff">📥 从币安账单导入持仓</span></div>';
+  h += '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.75;margin-bottom:10px">' +
+       '币安 App → 合约 → 右上「…」→ <b>导出记录</b>，导出「成交记录」的 CSV，把文件选进来。<br>' +
+       '我会按币种合并买卖，算出现在的净持仓和均价，<b>先给你看一遍，确认了才写进去</b>。</div>';
+  h += '<div class="acts"><a onclick="csvPick()">📄 选择 CSV 文件</a>';
+  if (CSV_DRAFT) h += '<a onclick="csvClear()">✖ 清掉重来</a>';
+  h += '</div>';
+  h += '<input type="file" id="csv-file" accept=".csv,.txt,text/csv,text/plain" ' +
+       'style="display:none" onchange="csvRead(event)">';
+  if (CSV_DRAFT) h += csvDraftHTML();
+  h += '</div>';
+  return h;
+}
+
+function csvDraftHTML() {
+  const d = CSV_DRAFT;
+  if (!d) return '';
+  if (d.err) {
+    return '<div class="warn" style="background:#160b0d;border-color:#3a1a1f;color:#ff9aa6">' +
+      '没认出来：' + d.err +
+      '<br><span style="font-size:11px;color:#8b93a6">把表头那两行发我，我照着改解析。</span></div>';
+  }
+  const rows = d.rows || [];
+  const on = rows.filter(function (r) { return r.on; }).length;
+  let h = '<div class="secttl" style="color:#8ab4ff;margin-top:14px">识别到 ' + rows.length +
+          ' 个持仓　<span id="csv-count" style="font-size:12px;color:#8b93a6">已选 ' + on + '</span></div>';
+  h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-bottom:8px">' +
+       (d.mode === "pos" ? '按「持仓快照」读的' : '按「成交记录」合并的') +
+       '　原始 ' + d.lines + ' 行</div>';
+  rows.forEach(function (r, i) {
+    h += '<div class="altcard" style="border-left:2.5px solid ' +
+        (r.dir === "L" ? "#1e7a52" : "#8a2b36") + '">' +
+      '<div class="atop"><span class="anm">' + r.sym + '</span>' +
+      '<span class="' + (r.dir === "L" ? "aw" : "ab") + '">' + (r.dir === "L" ? "多" : "空") + '</span></div>' +
+      '<div class="aline">均价 <b>' + f(r.entry) + '</b>　数量 <b>' + r.qty + '</b></div>' +
+      '<div class="aline" style="font-size:11px;color:#5f6779">名义 <b>' +
+      (r.qty * r.entry).toFixed(2) + 'U</b>　' + r.n + ' 笔' +
+      (r.exist ? '　<b style="color:#ff9aa6">本机已有，跳过</b>' : '') + '</div>' +
+      '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#8b93a6;margin-top:7px">' +
+      '<input type="checkbox" ' + (r.on ? 'checked' : '') +
+      ' onchange="csvToggle(' + i + ',this.checked)" style="width:19px;height:19px;accent-color:#19c07a">' +
+      '导入这条</label>' +
+      '</div>';
+  });
+  h += '<div class="acts" style="margin-top:10px">' +
+       '<a class="p" id="csv-go" onclick="csvApply()">✅ 确认导入 ' + on + ' 条</a></div>';
+  h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-top:8px">' +
+       '导入的仓位按 <b>1x + 全仓</b> 记，进去后在持仓页可以改保证金模式。</div>';
+  return h;
+}
+
+function csvToggle(i, v) {
+  if (!CSV_DRAFT || !CSV_DRAFT.rows[i]) return;
+  CSV_DRAFT.rows[i].on = !!v;
+  const on = CSV_DRAFT.rows.filter(function (r) { return r.on; }).length;
+  const c = $("csv-count");
+  if (c) c.textContent = "已选 " + on;
+  const b = $("csv-go");
+  if (b) {
+    b.textContent = "✅ 确认导入 " + on + " 条";
+    b.style.opacity = on ? "1" : ".45";
+  }
+}
+
+function csvPick() { const f = $("csv-file"); if (f) f.click(); }
+function csvClear() { CSV_DRAFT = null; renderAlts(); }
+
+function csvRead(e) {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function () {
+    let d;
+    try { d = parseTradeCSV(String(r.result || "")); }
+    catch (err) { d = { err: err.message, rows: [] }; }
+    CSV_DRAFT = d;
+    renderAlts();
+  };
+  r.onerror = function () { alert("读文件失败"); };
+  r.readAsText(f);
+  e.target.value = "";
+}
+
+function csvApply() {
+  if (!CSV_DRAFT || CSV_DRAFT.err) return;
+  const rows = CSV_DRAFT.rows.filter(function (r) { return r.on && !r.exist; });
+  if (!rows.length) { alert("没有可导入的（要么没勾，要么本机都有了）"); return; }
+  if (!confirm("写入 " + rows.length + " 条持仓？\n\n按 1x + 全仓记录，\n进持仓页可以改。")) return;
+  let w = 0;
+  rows.forEach(function (r) {
+    savePos(r.sym, {
+      dir: r.dir, entry: r.entry,
+      sl: r.dir === "L" ? +(r.entry * 0.9).toFixed(8) : +(r.entry * 2).toFixed(8),
+      ext: r.entry, qty: r.qty, lev: 1, margin: r.qty * r.entry,
+      marginMode: "cross", date: new Date().toISOString().slice(0, 10)
+    });
+    w++;
+  });
+  CSV_DRAFT = null;
+  alert("导入完成，写入 " + w + " 条。\n切到「持仓」页看看对不对。");
+  renderAlts();
+}
+
+/* ---- CSV 解析 ---- */
+function csvSplit(text) {
+  const rows = [];
+  let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i++; }
+        else q = false;
+      } else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (c !== "\r") cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+function csvNum(v) {
+  const s = String(v == null ? "" : v).replace(/[,，\s%]/g, "");
+  const n = parseFloat(s);
+  return isFinite(n) ? n : NaN;
+}
+
+function csvSym(v) {
+  let s = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!s) return "";
+  s = s.replace(/(USDT|USDC|BUSD|PERP|USD)$/, "");
+  return s;
+}
+
+function parseTradeCSV(text) {
+  const rows = csvSplit(text);
+  if (!rows.length) throw new Error("文件是空的");
+  const COL = {
+    sym:   /交易对|合约|币种|symbol|pair|contract/i,
+    side:  /方向|买卖|side/i,
+    type:  /类型|type/i,
+    price: /开仓均价|均价|成交价|成交均价|价格|price|entry/i,
+    qty:   /持仓量|数量|成交量|成交数量|quantity|executed|size|qty/i
+  };
+  let hi = -1, col = null;
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const cells = rows[i].map(function (c) { return String(c || "").trim(); });
+    const c = {};
+    cells.forEach(function (v, j) {
+      for (const k in COL) {
+        if (c[k] === undefined && COL[k].test(v)) c[k] = j;
+      }
+    });
+    if (c.sym !== undefined && c.qty !== undefined &&
+        (c.price !== undefined || c.side !== undefined || c.type !== undefined)) {
+      hi = i; col = c; break;
+    }
+  }
+  if (hi < 0) throw new Error("表头没认出来（找不到交易对 / 数量这类列）");
+
+  const need = Math.max(col.sym, col.qty) + 1;
+  const body = rows.slice(hi + 1).filter(function (r) { return r.length >= need; });
+  if (!body.length) throw new Error("表头下面没有数据行");
+
+  const headLine = rows[hi].join(",");
+  const isPos = /持仓量|position|开仓均价|entry price/i.test(headLine);
+  const out = [];
+
+  if (isPos) {
+    /* 一行 = 一个持仓 */
+    const seen = {};
+    body.forEach(function (r) {
+      const sym = csvSym(r[col.sym]);
+      if (!sym) return;
+      const qty = csvNum(r[col.qty]);
+      const px = col.price !== undefined ? csvNum(r[col.price]) : NaN;
+      if (!isFinite(qty) || qty === 0 || !isFinite(px) || px <= 0) return;
+      let dir = qty > 0 ? "L" : "S";
+      if (col.side !== undefined) {
+        const t = String(r[col.side] || "");
+        if (/空|SHORT|SELL/i.test(t)) dir = "S";
+        else if (/多|LONG|BUY/i.test(t)) dir = "L";
+      }
+      if (seen[sym]) return;
+      seen[sym] = 1;
+      out.push({ sym: sym, dir: dir, qty: Math.abs(qty), entry: px, n: 1,
+                 on: true, exist: !!loadPos(sym) });
+    });
+    return { mode: "pos", rows: out, lines: body.length };
+  }
+
+  /* 成交记录：按币种净额 */
+  const agg = {};
+  let used = 0;
+  body.forEach(function (r) {
+    const sym = csvSym(r[col.sym]);
+    if (!sym) return;
+    const qty = csvNum(r[col.qty]);
+    const px = col.price !== undefined ? csvNum(r[col.price]) : NaN;
+    if (!isFinite(qty) || qty === 0 || !isFinite(px) || px <= 0) return;
+    const typ = col.type !== undefined ? String(r[col.type] || "") : "";
+    const side = col.side !== undefined ? String(r[col.side] || "") : "";
+    let sign = 0;
+    if (/平多/.test(typ)) sign = -1;
+    else if (/平空/.test(typ)) sign = 1;
+    else if (/开多/.test(typ)) sign = 1;
+    else if (/开空/.test(typ)) sign = -1;
+    else if (/买|BUY/i.test(side) || /买/.test(typ)) sign = 1;
+    else if (/卖|SELL/i.test(side) || /卖/.test(typ)) sign = -1;
+    if (!sign) return;
+    if (!agg[sym]) agg[sym] = { net: 0, sides: [] };
+    agg[sym].net += sign * qty;
+    agg[sym].sides.push({ sign: sign, qty: qty, price: px });
+    used++;
+  });
+  if (!used) throw new Error("有表头但一行成交都没解析出来（方向/数量列可能不对）");
+
+  Object.keys(agg).forEach(function (sym) {
+    const a = agg[sym];
+    if (Math.abs(a.net) < 1e-12) return;      // 已经平掉了
+    const want = a.net > 0 ? 1 : -1;
+    let vol = 0, sum = 0, cnt = 0;
+    a.sides.forEach(function (s) {
+      if (s.sign !== want) return;
+      vol += s.qty; sum += s.qty * s.price; cnt++;
+    });
+    if (vol <= 0) return;
+    out.push({ sym: sym, dir: want > 0 ? "L" : "S",
+               qty: +(Math.abs(a.net).toFixed(8)), entry: +(sum / vol).toFixed(10),
+               n: cnt, on: true, exist: !!loadPos(sym) });
+  });
+  if (!out.length) throw new Error("所有币的净持仓都是 0（看起来都已经平仓了）");
+  return { mode: "trade", rows: out, lines: body.length };
+}
+
 /* ============ 山寨页：三个子页 ============ */
 async function renderAlts() {
   const box = $("alts");
   if (!box) return;
   if (TAB !== "alt") { box.innerHTML = ""; return; }
+  // 备份页不依赖行情数据，没拉到山寨数据也要能进
+  if (SUB === "bk") { box.innerHTML = altBkHTML(); return; }
   if (!ALT) ALT = await loadAlts();
   if (!ALT) {
     box.innerHTML = '<div class="err">山寨数据还没生成（每 2 小时更新一次）</div>';
@@ -1783,7 +2042,7 @@ function altSigHTML() {
     '　' + freshTxt + '</h3>';
   h += '<div class="acts" style="margin-bottom:10px">' +
     '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a>' +
-    '<a onclick="openBackup()">💾 备份 / 恢复</a></div>';
+    '<a onclick="setSUB(\'bk\')">💾 备份 / 导入</a></div>';
   h += '<div class="tideintro">🎯 <b>顶口</b>：专门做山寨币的「顶」和「口」。' +
        '暴涨 30%+ → 在顶部做空（赌它回落）；回落 15%+ 后止跌回升 → 在口上做多（赌它再涨）。' +
        '两条腿都持 20 天。</div>';
@@ -1865,16 +2124,6 @@ function altSigHTML() {
   h += '<div class="shortwarn">⚠️ 最大风险：这 5% 本金亏光。历史最长连亏 5 笔（-25% 本金）。' +
        '<br>⚠️ 小币深度差，用限价单。</div>';
   h += '</div>';
-
-  /* —— 数据备份 / 迁移 —— */
-  h += '<div class="bigcard" style="margin-top:14px">' +
-       '<div class="bchead"><span>💾 数据备份 / 换手机迁移</span></div>' +
-       '<div class="aline" style="font-size:11.5px;color:#5f6779;line-height:1.7;margin-bottom:10px">' +
-       '导出会打包全部本地数据：<b>持仓 · 本金 · 风险比例 · 杠杆 · 结算记录</b>。<br>' +
-       '从浏览器搬到 App，或者换手机，就靠这个。</div>' +
-       '<div class="acts">' +
-       '<a class="p" onclick="openBackup()">📤 一键导出</a>' +
-       '<a onclick="openBackup(true)">📥 一键导入</a></div></div>';
   return h;
 }
 
@@ -2418,7 +2667,8 @@ const SUBS = {
     { k: "sig",  t: "信号" },
     { k: "chg",  t: "涨跌" },
     { k: "watch", t: "观察" },
-    { k: "agg",  t: "⚡激进" }
+    { k: "agg",  t: "⚡激进" },
+    { k: "bk",   t: "💾 备份" }
   ],
   pos: []
 };
