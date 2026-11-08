@@ -3070,40 +3070,51 @@ function exBtn(sym) {
     '" onclick="return openEx(\'' + s + '\')">去 ' + exName() + ' ↗</a></div>';
 }
 
-/* 各家 App 的 scheme：先叫 App，叫不起来再退回网页 */
+/* 各交易所 App 的包名（按顺序试）+ 私有 scheme 兜底 */
+const EX_PKGS = {
+  binance: ["com.binance.dev", "com.binance.p2p", "com.binance.us"],
+  bitget: ["com.bitget.exchange", "com.bitget.app"],
+  okx: ["com.okx.wallet", "com.okex.gtx", "com.okinc.okx"]
+};
 const EX_SCHEME = { binance: "binance://", bitget: "bitget://", okx: "okx://" };
 
-function openEx(sym) {
-  const url = exLink(sym);
-  const scheme = EX_SCHEME[EXCH] || "";
-  const C = window.Capacitor;
-  const P = C && C.Plugins && C.Plugins.AppLauncher;
-
-  if (P && P.openUrl) {
-    const goWeb = function () {
-      try { P.openUrl({ url: url }); } catch (e) { try { window.open(url, "_blank"); } catch (e2) {} }
-    };
-    if (scheme && P.canOpenUrl) {
-      P.canOpenUrl({ url: scheme }).then(function (r) {
-        if (r && r.value) {
-          try { P.openUrl({ url: scheme }); } catch (e) { goWeb(); }
-        } else { goWeb(); }
-      }).catch(goWeb);
-      return false;
-    }
-    if (scheme) {
-      try { P.openUrl({ url: scheme }); return false; } catch (e) {}
-    }
-    goWeb();
-    return false;
+function openExWeb(url, P) {
+  if (P && P.AppLauncher && P.AppLauncher.openUrl) {
+    try { P.AppLauncher.openUrl({ url: url }); return; } catch (e) {}
   }
-
   try {
     const w = window.open(url, "_blank");
     if (!w) location.href = url;
   } catch (e) {
     try { location.href = url; } catch (e2) {}
   }
+}
+
+function openEx(sym) {
+  const url = exLink(sym);
+  const C = window.Capacitor;
+  const P = C && C.Plugins;
+
+  /* 1) 原生插件：按包名直接拉起 App，不依赖深链 */
+  if (P && P.AppLaunch && P.AppLaunch.openApp) {
+    P.AppLaunch.openApp({ pkgs: EX_PKGS[EXCH] || [] }).then(function (r) {
+      if (r && r.ok) return;
+      const sc = EX_SCHEME[EXCH];
+      if (sc && P.AppLauncher && P.AppLauncher.canOpenUrl) {
+        P.AppLauncher.canOpenUrl({ url: sc }).then(function (c) {
+          if (c && c.value) {
+            try { P.AppLauncher.openUrl({ url: sc }); return; } catch (e) {}
+          }
+          openExWeb(url, P);
+        }).catch(function () { openExWeb(url, P); });
+      } else {
+        openExWeb(url, P);
+      }
+    }).catch(function () { openExWeb(url, P); });
+    return false;
+  }
+
+  openExWeb(url, P);
   return false;
 }
 
