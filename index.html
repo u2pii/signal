@@ -3063,10 +3063,7 @@ function exLink(sym) {
 
 function exBtn(sym) {
   const s = String(sym || "").toUpperCase();
-  return '<div class="exto">' +
-    '<a onclick="copySym(\'' + s + '\',this)">复制币种</a>' +
-    '<a href="' + exLink(s) + '" onclick="return openEx(\'' + s + '\')">去 ' + exName() + ' ↗</a>' +
-    '</div>';
+  return '<div class="exto"><a onclick="copySym(\'' + s + '\',this)">复制 ' + s + '</a></div>';
 }
 
 function copySym(sym, el) {
@@ -3283,19 +3280,8 @@ function meHTML() {
     }).join('') + '</div>';
   h += '</div>';
 
-  /* 交易所 */
-  h += '<div class="bigcard">';
-  h += '<div class="bchead"><span>交易所在用哪个</span>' +
-    '<span style="font-size:11px;color:var(--dim)">「去下单」跳这里</span></div>';
-  h += '<div class="levrow" style="margin-top:0">' +
-    EXCH_LIST.map(function (e) {
-      return '<button class="levbtn' + (EXCH === e.k ? " on" : "") + '" ' +
-        'onclick="setExch(\'' + e.k + '\')">' + e.n + '</button>';
-    }).join('') + '</div>';
-  h += '<div style="font-size:11px;color:var(--dim);margin-top:9px">' +
-    '现在用 ' + exName() + '：信号卡和持仓卡的「↗ 看」会打开 ' + exName() + ' 的对应合约页。' +
-    '<br>资金费率榜单目前只有币安的数据。</div>';
-  h += '</div>';
+  /* 交易所选择已删除：国内 ROM 会拦 binance.com，跳转必然失败，只保留复制币种 */
+
 
   /* 历史盈亏 */
   h += '<div class="bigcard">';
