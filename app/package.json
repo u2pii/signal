@@ -5,6 +5,7 @@
   "description": "今日信号 · 安卓外壳",
   "dependencies": {
     "@capacitor/android": "^6.2.0",
+    "@capacitor/app-launcher": "^6.0.1",
     "@capacitor/core": "^6.2.0"
   },
   "devDependencies": {
