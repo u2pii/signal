@@ -13,9 +13,12 @@ P = os.path.join("android", "app", "src", "main", "AndroidManifest.xml")
 QUERIES = """    <queries>
         <package android:name="com.binance.dev" />
         <package android:name="com.binance.us" />
+        <package android:name="com.binance.p2p" />
         <package android:name="com.bitget.exchange" />
+        <package android:name="com.bitget.app" />
         <package android:name="com.okx.wallet" />
         <package android:name="com.okex.gtx" />
+        <package android:name="com.okinc.okx" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="binance" />
