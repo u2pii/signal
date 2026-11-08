@@ -27,7 +27,7 @@ has = any((x.get("classpath") == CP or x.get("pkg") == "AppLaunch") for x in dat
 if has:
     print("已经注册过，跳过")
 else:
-    data.append({"pkg": CP, "classpath": CP})
+    data.append({"pkg": "AppLaunch", "classpath": CP})
     io.open(P, "w", encoding="utf-8", newline="\n").write(json.dumps(data, separators=(",", ":")))
     print("已注册 AppLaunchPlugin")
 
