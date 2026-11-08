@@ -91,6 +91,7 @@ jobs:
           mkdir -p "$D"
           cp native/AppLaunchPlugin.java native/MainActivity.java "$D/"
           ls -l "$D"
+          python3 patch_plugins.py
           F=android/app/src/main/res/values/styles.xml
           python3 - "$F" <<'PY'
           import io, sys
