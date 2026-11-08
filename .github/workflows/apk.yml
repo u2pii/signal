@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: apk-build
@@ -113,6 +114,10 @@ jobs:
           cp app/android/app/build/outputs/apk/debug/app-debug.apk out/signal.apk
           ls -lh out/
           "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs out/signal.apk | head -6 || true
+          echo "--- 壳里带的配置 ---"
+          unzip -p out/signal.apk assets/capacitor.config.json
+          unzip -p out/signal.apk assets/capacitor.config.json | grep -q "u2pii.github.io/signal" \
+            && echo "指向线上站点 OK" || (echo "配置里没有线上地址" && exit 1)
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,3 +133,19 @@ jobs:
             --notes "点 signal.apk 下载，装的时候允许未知来源。" 2>/dev/null || true
           gh release upload apk out/signal.apk --clobber
           echo "下载地址 https://github.com/${{ github.repository }}/releases/download/apk/signal.apk"
+
+      # 手机在国内下 github release 经常抽风，顺手放到 Pages 上，
+      # 站点能打开就说明这个包能下。
+      - name: 同步到网页目录
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config user.name  "signal-bot"
+          git config user.email "signal-bot@users.noreply.github.com"
+          cp out/signal.apk ./signal.apk
+          git add signal.apk
+          git commit -m "apk: 更新安装包 $(date -u +%Y%m%d-%H%M)" || echo "没有变化"
+          git push || true
+          gh workflow run pages.yml || true
+          echo "网页地址 https://u2pii.github.io/signal/signal.apk"
