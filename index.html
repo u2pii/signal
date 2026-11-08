@@ -14,241 +14,250 @@
 <link rel="icon" href="icons/icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>今日信号</title>
-<style>
+<script>
+/* 主题：进页面前先定好，避免闪一下 */
+try{
+  var _t=localStorage.getItem("theme")||"auto";
+  var _l=_t==="light"||(_t==="auto"&&window.matchMedia("(prefers-color-scheme: light)").matches);
+  document.documentElement.setAttribute("data-t",_l?"light":"dark");
+}catch(e){}
+</script>
+<style>:root{--z1:#161013;--z2:#0f1410;--z3:#0a120d;--z4:#0f2018;--z5:#2a3348;--z6:#1c2230;--z7:#181c26;--z8:#101319;--z9:#0e1520;--za:#1e2c44;--zb:#2a1216;--zc:#3a2028;--zd:#3a7d5c;--ze:#9aa3b5;--zf:#8892a6;--zg:#8b6b6b;--zh:#c9d1e0;--zi:#2a2f3d;--bg:var(--bg);--bg2:var(--bg2);--surf:var(--surf);--surf2:var(--surf2);--bd:var(--bd);--bd2:var(--bd2);--bd3:var(--bd3);--hair:var(--hair);--upbg:var(--upbg);--upbg2:var(--upbg2);--upbg3:var(--upbg3);--dnbg:var(--dnbg);--dnbg2:var(--dnbg2);--dnbg3:var(--dnbg3);--dnbg4:var(--dnbg4);--acbg:var(--acbg);--xbg:var(--xbg);--xbd:var(--xbd);--xfg:var(--xfg);--fg:var(--fg);--fg2:var(--fg2);--fg2x:var(--fg2x);--fg3:var(--fg3);--fg4:var(--fg4);--mid:var(--mid);--mid2:var(--mid2);--dim:var(--dim);--dim2:var(--dim2);--faint:var(--faint);--faint2:var(--faint2);--hi:#ffffff;--up:var(--up);--up2:var(--up2);--dn:var(--dn);--dn2:var(--dn2);--dn3:var(--dn3);--dn4:var(--dn4);--acc:var(--acc);--amber:var(--amber);--amber2:var(--amber2);--gold:var(--gold);--upbd:var(--upbd);--upbd2:var(--upbd2);--dnbd:var(--dnbd);--dnbd2:var(--dnbd2);--dnbd3:var(--dnbd3);--wabg:var(--wabg);--wabd:var(--wabd);--wabd2:var(--wabd2)}
+
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{overflow-x:hidden}
-body{margin:0 auto;background:#0a0c10;color:#d2d8e6;font:16px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+body{margin:0 auto;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
 padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(50px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px));
 max-width:430px;min-height:100vh;-webkit-text-size-adjust:100%}
-h1{font-size:20px;margin:0 0 4px;color:#fff;font-weight:700}
-.s{font-size:12.5px;color:#5f6779;margin-bottom:20px}
-.btn{width:100%;padding:22px;border:0;border-radius:18px;font-size:19px;font-weight:700;color:#fff;
+h1{font-size:20px;margin:0 0 4px;color:var(--hi);font-weight:700}
+.s{font-size:12.5px;color:var(--dim);margin-bottom:20px}
+.btn{width:100%;padding:22px;border:0;border-radius:18px;font-size:19px;font-weight:700;color:var(--hi);
 background:linear-gradient(135deg,#2f6bff,#1f4fd0);box-shadow:0 8px 28px rgba(47,107,255,.4);
 margin-bottom:8px;font-family:inherit}
 .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.55;box-shadow:none}
-.hint{font-size:11.5px;color:#4a5162;text-align:center;margin-bottom:22px}
-.card{background:#12151d;border:1px solid #202633;border-radius:16px;padding:16px;margin-bottom:14px;overflow:hidden}
-.card.go{border-left:3px solid #19c07a;background:#0d1a14}
-.card.done{opacity:.5;border-left-color:#3a4356}
+.hint{font-size:11.5px;color:var(--dim2);text-align:center;margin-bottom:22px}
+.card{background:var(--surf);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:14px;overflow:hidden}
+.card.go{border-left:3px solid var(--up);background:var(--upbg)}
+.card.done{opacity:.5;border-left-color:var(--faint2)}
 .top{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
-.sym{font-size:20px;font-weight:700;color:#fff}
+.sym{font-size:20px;font-weight:700;color:var(--hi)}
 .pill{font-size:12px;padding:3px 11px;border-radius:20px;font-weight:600;white-space:nowrap}
-.pill.L{background:#3a1420;color:#ff8fa0}
-.pill.S{background:#0f2e22;color:#4fe0a8}
-.pill.x{margin-left:auto;background:#19c07a;color:#04140d;font-size:11.5px}
-.pill.ok{background:#2a3448;color:#8b93a6;font-size:11.5px;margin-left:auto}
+.pill.L{background:var(--dnbg);color:var(--dn3)}
+.pill.S{background:var(--upbg2);color:var(--up2)}
+.pill.x{margin-left:auto;background:var(--up);color:#04140d;font-size:11.5px}
+.pill.ok{background:var(--bd2);color:var(--mid2);font-size:11.5px;margin-left:auto}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;font-size:14px}
 .kv div{display:flex;justify-content:space-between;gap:6px;min-width:0}
-.kv span{color:#5f6779;font-size:12.5px;white-space:nowrap}
-.kv b{color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stop{color:#ffc94d!important}
-.lev{color:#8ab4ff!important}
-.good{color:#19c07a!important}
-.bad{color:#ff6b7d!important}
-.warn{background:#2a1f0a;border:1px solid #5c4518;color:#ffc94d;padding:9px 12px;border-radius:10px;
+.kv span{color:var(--dim);font-size:12.5px;white-space:nowrap}
+.kv b{color:var(--hi);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stop{color:var(--amber)!important}
+.lev{color:var(--acc)!important}
+.good{color:var(--up)!important}
+.bad{color:var(--dn)!important}
+.warn{background:var(--wabg);border:1px solid var(--wabd);color:var(--amber);padding:9px 12px;border-radius:10px;
 font-size:12.5px;line-height:1.5;margin-top:10px}
 .acts{display:flex;gap:10px;margin-top:14px}
 .acts a{flex:1;text-align:center;padding:14px 8px;border-radius:13px;font-size:14.5px;font-weight:600;
-text-decoration:none;background:#1c2333;color:#8ab4ff;border:1px solid #2a3448;cursor:pointer}
-.acts a.p{background:#19c07a;color:#04140d;border:0}
+text-decoration:none;background:var(--surf2);color:var(--acc);border:1px solid var(--bd2);cursor:pointer}
+.acts a.p{background:var(--up);color:#04140d;border:0}
 .acts a:active{opacity:.8}
 .w{display:grid;grid-template-columns:54px 1fr 1fr;gap:8px;align-items:center;
-padding:11px 4px;border-bottom:1px solid #181d28;font-size:13px}
-.w .n{font-weight:700;color:#c8cfe0;font-size:14px}
-.w .u{color:#7d8699;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.w .u b{color:#c8cfe0;font-variant-numeric:tabular-nums}
-.w .u i{display:block;font-style:normal;font-size:11px;color:#4a5162}
-h3{font-size:12.5px;color:#5f6779;margin:22px 0 8px;font-weight:500;letter-spacing:.5px}
-.empty{text-align:center;padding:34px 0;color:#5f6779}
-.empty b{display:block;font-size:17px;color:#98a0b3;margin-bottom:6px}
-.err{background:#1a0f11;border:1px solid #5c2028;color:#ff9aa6;padding:12px 14px;border-radius:12px;font-size:13.5px;margin-bottom:14px}
+padding:11px 4px;border-bottom:1px solid var(--hair);font-size:13px}
+.w .n{font-weight:700;color:var(--fg2);font-size:14px}
+.w .u{color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w .u b{color:var(--fg2);font-variant-numeric:tabular-nums}
+.w .u i{display:block;font-style:normal;font-size:11px;color:var(--dim2)}
+h3{font-size:12.5px;color:var(--dim);margin:22px 0 8px;font-weight:500;letter-spacing:.5px}
+.empty{text-align:center;padding:34px 0;color:var(--dim)}
+.empty b{display:block;font-size:17px;color:var(--fg4);margin-bottom:6px}
+.err{background:var(--dnbg3);border:1px solid var(--dnbd2);color:var(--dn4);padding:12px 14px;border-radius:12px;font-size:13.5px;margin-bottom:14px}
 .clear{text-align:center;margin-top:18px}
-.clear a{font-size:12px;color:#4a5162;text-decoration:none;border-bottom:1px dotted #2a3448}
+.clear a{font-size:12px;color:var(--dim2);text-decoration:none;border-bottom:1px dotted var(--bd2)}
 .risk{display:flex;gap:7px;margin-bottom:18px}
-.risk button{flex:1;padding:9px 4px;border-radius:11px;border:1px solid #202633;background:#12151d;
-color:#7d8699;font-size:12.5px;font-weight:600;font-family:inherit}
-.risk button.on{border-color:#2f6bff;background:#16224a;color:#8ab4ff}
+.risk button{flex:1;padding:9px 4px;border-radius:11px;border:1px solid var(--bd);background:var(--surf);
+color:var(--mid);font-size:12.5px;font-weight:600;font-family:inherit}
+.risk button.on{border-color:#2f6bff;background:var(--acbg);color:var(--acc)}
 .risk button small{display:block;font-size:9.5px;font-weight:400;opacity:.65;margin-top:2px}
 /* 弹窗 */
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99;
 align-items:center;justify-content:center;padding:20px}
 .modal.on{display:flex}
-.mbox{background:#12151d;border:1px solid #2a3448;border-radius:18px;padding:20px;width:100%;max-width:340px}
-.mhead{font-size:17px;font-weight:700;color:#fff;margin-bottom:16px}
+.mbox{background:var(--surf);border:1px solid var(--bd2);border-radius:18px;padding:20px;width:100%;max-width:340px}
+.mhead{font-size:17px;font-weight:700;color:var(--hi);margin-bottom:16px}
 .mrow{margin-bottom:13px}
-.mrow label{display:block;font-size:12px;color:#5f6779;margin-bottom:5px}
-.mrow input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid #2a3448;background:#0a0c10;
-color:#fff;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;font-family:inherit}
+.mrow label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px}
+.mrow input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--hi);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;font-family:inherit}
 .mrow input:focus{outline:none;border-color:#2f6bff}
-.mmsg{font-size:12px;color:#7d8699;min-height:18px;margin-bottom:12px;line-height:1.5}
-.mmsg.bad{color:#ff8fa0}
+.mmsg{font-size:12px;color:var(--mid);min-height:18px;margin-bottom:12px;line-height:1.5}
+.mmsg.bad{color:var(--dn3)}
 .macts{display:flex;gap:10px}
-.macts button{flex:1;padding:14px;border-radius:12px;border:1px solid #2a3448;background:#1c2333;
-color:#8b93a6;font-size:15px;font-weight:600;font-family:inherit}
-.macts button.p{background:#19c07a;color:#04140d;border:0}
-.editlink{font-size:11.5px;color:#4a5162;text-decoration:none;border-bottom:1px dotted #2a3448;margin-left:auto}
-.altcard{background:#12151d;border:1px solid #202633;border-radius:12px;padding:11px 13px;margin-bottom:8px}
-.altcard.bad{border-left:3px solid #e8484f;background:#161013}
+.macts button{flex:1;padding:14px;border-radius:12px;border:1px solid var(--bd2);background:var(--surf2);
+color:var(--mid2);font-size:15px;font-weight:600;font-family:inherit}
+.macts button.p{background:var(--up);color:#04140d;border:0}
+.editlink{font-size:11.5px;color:var(--dim2);text-decoration:none;border-bottom:1px dotted var(--bd2);margin-left:auto}
+.altcard{background:var(--surf);border:1px solid var(--bd);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.altcard.bad{border-left:3px solid var(--dn2);background:var(--z1)}
 .atop{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-.anm{font-size:15.5px;font-weight:700;color:#fff}
-.ab{font-size:11px;padding:2px 9px;border-radius:20px;background:#3a1418;color:#ff8fa0;margin-left:auto;font-weight:600}
-.aw{font-size:11px;padding:2px 9px;border-radius:20px;background:#16224a;color:#8ab4ff;margin-left:auto;font-weight:600}
-.aline{font-size:12.5px;color:#7d8699;line-height:1.75}
-.aline b{color:#c9cfdd;font-variant-numeric:tabular-nums}
-.aline b.bad{color:#ff6b7d}
-.aline b.good{color:#19c07a}
+.anm{font-size:15.5px;font-weight:700;color:var(--hi)}
+.ab{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--dnbg2);color:var(--dn3);margin-left:auto;font-weight:600}
+.aw{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--acbg);color:var(--acc);margin-left:auto;font-weight:600}
+.aline{font-size:12.5px;color:var(--mid);line-height:1.75}
+.aline b{color:var(--fg2x);font-variant-numeric:tabular-nums}
+.aline b.bad{color:var(--dn)}
+.aline b.good{color:var(--up)}
 .levrow{display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap}
-.levlabel{font-size:11.5px;color:#5f6779;margin-right:2px}
-.levbtn{flex:1;min-width:36px;padding:8px 2px;border-radius:9px;border:1px solid #2a3448;
-background:#0a0c10;color:#7d8699;font-size:13px;font-weight:600;font-family:inherit}
-.levbtn.on{border-color:#8ab4ff;background:#16224a;color:#8ab4ff}
+.levlabel{font-size:11.5px;color:var(--dim);margin-right:2px}
+.levbtn{flex:1;min-width:36px;padding:8px 2px;border-radius:9px;border:1px solid var(--bd2);
+background:var(--bg);color:var(--mid);font-size:13px;font-weight:600;font-family:inherit}
+.levbtn.on{border-color:var(--acc);background:var(--acbg);color:var(--acc)}
 .levbtn.dis{opacity:.3}
 .levbtn.hint{flex:0 0 auto;min-width:52px;font-size:12px;border-style:dashed}
 .levx{display:flex;gap:5px;flex:1;min-width:98px;align-items:center}
-.levx input{flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid #2a3448;background:#0a0c10;
-color:#fff;font-size:12.5px;font-family:inherit;text-align:center;font-variant-numeric:tabular-nums}
-.levx input:focus{outline:none;border-color:#8ab4ff}
-.levx button{flex:0 0 auto;padding:7px 10px;border-radius:8px;border:1px solid #2a3448;background:#1c2333;
-color:#8ab4ff;font-size:12px;font-weight:600;font-family:inherit}
-.bktext{width:100%;height:132px;margin:8px 0 6px;padding:10px;border-radius:10px;border:1px solid #2a3448;
-background:#0a0c10;color:#c9cfdd;font-family:ui-monospace,Menlo,Consolas,monospace;
+.levx input{flex:1;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--hi);font-size:12.5px;font-family:inherit;text-align:center;font-variant-numeric:tabular-nums}
+.levx input:focus{outline:none;border-color:var(--acc)}
+.levx button{flex:0 0 auto;padding:7px 10px;border-radius:8px;border:1px solid var(--bd2);background:var(--surf2);
+color:var(--acc);font-size:12px;font-weight:600;font-family:inherit}
+.bktext{width:100%;height:132px;margin:8px 0 6px;padding:10px;border-radius:10px;border:1px solid var(--bd2);
+background:var(--bg);color:var(--fg2x);font-family:ui-monospace,Menlo,Consolas,monospace;
 font-size:11px;line-height:1.5;resize:none;word-break:break-all;white-space:pre-wrap}
-.bktext:focus{outline:none;border-color:#8ab4ff}
-.movbox{background:#12151d;border:1px solid #202633;border-radius:13px;padding:13px 15px;margin-bottom:14px}
-.movhead{font-size:12px;color:#5f6779;margin-bottom:8px;font-weight:600}
+.bktext:focus{outline:none;border-color:var(--acc)}
+.movbox{background:var(--surf);border:1px solid var(--bd);border-radius:13px;padding:13px 15px;margin-bottom:14px}
+.movhead{font-size:12px;color:var(--dim);margin-bottom:8px;font-weight:600}
 .movgrid{display:flex;flex-direction:column;gap:5px}
 .movrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;font-size:13.5px}
-.movsym{font-weight:700;color:#e2e6f0}
+.movsym{font-weight:700;color:var(--fg3)}
 .movchg{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
-.movchg.up{color:#19c07a}
-.movchg.dn{color:#ff6b7d}
-.movpx{font-size:12px;color:#5f6779;font-variant-numeric:tabular-nums;text-align:right;min-width:74px}
-.shortbox{background:#0f1410;border:1px solid #1e3a28;border-radius:14px;padding:14px;margin-bottom:16px}
-.shorthead{font-size:15.5px;font-weight:700;color:#19c07a;margin-bottom:8px}
-.shortrule{font-size:12px;color:#7d8699;line-height:1.7;background:#0a120d;border-radius:9px;
+.movchg.up{color:var(--up)}
+.movchg.dn{color:var(--dn)}
+.movpx{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right;min-width:74px}
+.shortbox{background:var(--z2);border:1px solid var(--upbd);border-radius:14px;padding:14px;margin-bottom:16px}
+.shorthead{font-size:15.5px;font-weight:700;color:var(--up);margin-bottom:8px}
+.shortrule{font-size:12px;color:var(--mid);line-height:1.7;background:var(--z3);border-radius:9px;
 padding:9px 11px;margin-bottom:12px}
-.shortrule b{color:#d2d8e6}
-.scard{background:#12151d;border:1px solid #2a3348;border-left:3px solid #e8484f;
+.shortrule b{color:var(--fg)}
+.scard{background:var(--surf);border:1px solid var(--z5);border-left:3px solid var(--dn2);
 border-radius:11px;padding:12px 13px;margin-bottom:9px}
-.sbadge{font-size:12px;padding:2px 10px;border-radius:20px;background:#3a1418;color:#ff8fa0;
+.sbadge{font-size:12px;padding:2px 10px;border-radius:20px;background:var(--dnbg2);color:var(--dn3);
 margin-left:auto;font-weight:700}
-.bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#0f2e22;color:#4fe0a8;font-weight:600}
-.bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#2a1f0a;color:#f0be5a;font-weight:600}
-.acts a.closebtn{background:#1a1216;color:#c98b96;border:1px solid #3a2830}
-.addpos{width:100%;padding:13px;border-radius:12px;border:1px dashed #2f6bff88;background:#0f1626;
-color:#8ab4ff;font-size:14px;font-weight:600;font-family:inherit;margin-bottom:12px}
-.addpos:active{background:#16224a}
+.bnok{font-size:10.5px;padding:2px 8px;border-radius:20px;background:var(--upbg2);color:var(--up2);font-weight:600}
+.bnno{font-size:10.5px;padding:2px 8px;border-radius:20px;background:var(--wabg);color:var(--amber2);font-weight:600}
+.acts a.closebtn{background:var(--xbg);color:var(--xfg);border:1px solid var(--xbd)}
+.addpos{width:100%;padding:13px;border-radius:12px;border:1px dashed #2f6bff88;background:var(--bg3);
+color:var(--acc);font-size:14px;font-weight:600;font-family:inherit;margin-bottom:12px}
+.addpos:active{background:var(--acbg)}
 .nprow{display:flex;gap:8px;margin-bottom:12px}
-.nprow button{flex:1;padding:11px;border-radius:10px;border:1px solid #2a3448;background:#0a0c10;
-color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
-.nprow button.on.short{border-color:#19c07a;background:#0d1a14;color:#19c07a}
-.nprow button.on.long{border-color:#e8484f;background:#1a0f11;color:#ff8fa0}
+.nprow button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--mid);font-size:14px;font-weight:600;font-family:inherit}
+.nprow button.on.short{border-color:var(--up);background:var(--upbg);color:var(--up)}
+.nprow button.on.long{border-color:var(--dn2);background:var(--dnbg3);color:var(--dn3)}
 .subbar{display:none;gap:6px;margin:-6px 0 14px}
-.subbar button{flex:1;padding:9px 4px;border-radius:10px;border:1px solid #1c2230;background:#0d1015;
+.subbar button{flex:1;padding:9px 4px;border-radius:10px;border:1px solid var(--z6);background:var(--bg2);
 color:#6b7385;font-size:12.5px;font-weight:600;font-family:inherit}
-.subbar button.on{border-color:#3a7d5c;background:#0f2018;color:#4fe0a8}
-.tideintro{font-size:11.5px;color:#7d8699;line-height:1.7;background:#0e1520;
-border:1px solid #1e2c44;border-radius:11px;padding:10px 13px;margin-bottom:12px}
-.tideintro b{color:#8ab4ff}
-.bigcard{background:#101319;border:1px solid #232a38;border-radius:15px;padding:14px;margin-bottom:14px}
-.bigcard > .bchead{font-size:13.5px;font-weight:700;color:#c9d1e0;margin-bottom:10px;display:flex;
+.subbar button.on{border-color:var(--zd);background:var(--z4);color:var(--up2)}
+.tideintro{font-size:11.5px;color:var(--mid);line-height:1.7;background:var(--z9);
+border:1px solid var(--za);border-radius:11px;padding:10px 13px;margin-bottom:12px}
+.tideintro b{color:var(--acc)}
+.bigcard{background:var(--z8);border:1px solid var(--bd3);border-radius:15px;padding:14px;margin-bottom:14px}
+.bigcard > .bchead{font-size:13.5px;font-weight:700;color:var(--zh);margin-bottom:10px;display:flex;
 justify-content:space-between;align-items:center}
-.mgbar{background:#12151d;border:1px solid #232a38;border-radius:12px;padding:11px 13px;margin-bottom:13px}
-.mgbar.over{background:#1a0f11;border-color:#5c2028}
-.mgbar > div:first-child{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:#7d8699}
-.mgbar > div:first-child b{font-size:17px;color:#4fe0a8}
-.mgbar.over > div:first-child b{color:#ff6b7d}
-.mgbar > div:nth-child(2){display:flex;justify-content:space-between;font-size:11px;color:#5f6779;margin-top:5px}
-.mgnote{font-size:11px;color:#ff9aa6;margin-top:7px;padding-top:7px;border-top:1px solid #3a1a1f}
-.capnote{font-size:11.5px;color:#5f6779;line-height:1.7;background:#0d1015;border:1px solid #232a38;
+.mgbar{background:var(--surf);border:1px solid var(--bd3);border-radius:12px;padding:11px 13px;margin-bottom:13px}
+.mgbar.over{background:var(--dnbg3);border-color:var(--dnbd2)}
+.mgbar > div:first-child{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--mid)}
+.mgbar > div:first-child b{font-size:17px;color:var(--up2)}
+.mgbar.over > div:first-child b{color:var(--dn)}
+.mgbar > div:nth-child(2){display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:5px}
+.mgnote{font-size:11px;color:var(--dn4);margin-top:7px;padding-top:7px;border-top:1px solid var(--dnbd)}
+.capnote{font-size:11.5px;color:var(--dim);line-height:1.7;background:var(--bg2);border:1px solid var(--bd3);
 border-radius:9px;padding:9px 11px;margin:2px 0 12px}
-.capnote b{color:#e2e6f0}
-.aggmg{background:#0d1015;border:1px solid #2a2f3d;border-radius:11px;padding:11px;margin-bottom:12px}
-.aggmg-t{font-size:11.5px;color:#7d8699;margin-bottom:7px}
+.capnote b{color:var(--fg3)}
+.aggmg{background:var(--bg2);border:1px solid var(--zi);border-radius:11px;padding:11px;margin-bottom:12px}
+.aggmg-t{font-size:11.5px;color:var(--mid);margin-bottom:7px}
 .aggmg .mmseg{display:flex;gap:6px}
-.aggmg .mmseg button{flex:1;padding:8px 2px;border-radius:8px;border:1px solid #2a3448;background:#0a0c10;
-color:#7d8699;font-size:12px;font-weight:600;font-family:inherit}
-.aggmg .mmseg button.on{border-color:#ff6b7d;background:#2a1216;color:#ff9aa6}
-.aggmg-row{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:#7d8699}
-.aggmg-row input{flex:1;background:#0a0c10;border:1px solid #2a3448;border-radius:8px;color:#e2e6f0;
+.aggmg .mmseg button{flex:1;padding:8px 2px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--mid);font-size:12px;font-weight:600;font-family:inherit}
+.aggmg .mmseg button.on{border-color:var(--dn);background:var(--zb);color:var(--dn4)}
+.aggmg-row{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--mid)}
+.aggmg-row input{flex:1;background:var(--bg);border:1px solid var(--bd2);border-radius:8px;color:var(--fg3);
 padding:8px 10px;font-size:13px;font-family:inherit}
-.aggmg-note{font-size:11px;color:#5f6779;margin-top:9px;line-height:1.7}
-.aggmg-note b{color:#ff9aa6}
-.aggwarn{background:#1a0f11;border:1px solid #5c2028;border-radius:9px;padding:9px 11px;
-margin-top:9px;font-size:11.5px;line-height:1.7;color:#ff9aa6}
+.aggmg-note{font-size:11px;color:var(--dim);margin-top:9px;line-height:1.7}
+.aggmg-note b{color:var(--dn4)}
+.aggwarn{background:var(--dnbg3);border:1px solid var(--dnbd2);border-radius:9px;padding:9px 11px;
+margin-top:9px;font-size:11.5px;line-height:1.7;color:var(--dn4)}
 .secttl{font-size:12.5px;font-weight:700;margin-bottom:6px}
-.sectrule{font-size:11px;color:#7d8699;line-height:1.6;border:1px solid #2a3448;background:#0d1015;
+.sectrule{font-size:11px;color:var(--mid);line-height:1.6;border:1px solid var(--bd2);background:var(--bg2);
 border-radius:9px;padding:9px 11px;margin-bottom:11px}
-.movrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #181c26}
+.movrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--z7)}
 .movrow:last-child{border-bottom:none}
-.movsym{font-weight:700;color:#e2e6f0;font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.movsym{font-weight:700;color:var(--fg3);font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .movchg{font-size:13px;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-.movchg.up{color:#19c07a}
-.movchg.dn{color:#ff6b7d}
-.movpx{font-size:11px;color:#5f6779;font-variant-numeric:tabular-nums;text-align:right;min-width:64px}
-.sc2empty{font-size:11.5px;color:#3d4352;padding:8px 0}
+.movchg.up{color:var(--up)}
+.movchg.dn{color:var(--dn)}
+.movpx{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right;min-width:64px}
+.sc2empty{font-size:11.5px;color:var(--faint);padding:8px 0}
 .tabs{display:flex;gap:8px;margin-bottom:14px}
-.tabs button{flex:1;padding:11px 4px;border-radius:12px;border:1px solid #202633;background:#12151d;
-color:#7d8699;font-size:14px;font-weight:700;font-family:inherit}
-.tabs button.on{border-color:#2f6bff;background:#16224a;color:#8ab4ff}
+.tabs button{flex:1;padding:11px 4px;border-radius:12px;border:1px solid var(--bd);background:var(--surf);
+color:var(--mid);font-size:14px;font-weight:700;font-family:inherit}
+.tabs button.on{border-color:#2f6bff;background:var(--acbg);color:var(--acc)}
 .tabs button small{display:block;font-size:10px;font-weight:400;opacity:.7;margin-top:2px}
-.capbar{display:flex;align-items:center;gap:9px;background:#12151d;border:1px solid #202633;
+.capbar{display:flex;align-items:center;gap:9px;background:var(--surf);border:1px solid var(--bd);
 border-radius:13px;padding:12px 15px;margin-bottom:14px;cursor:pointer}
-.capbar span{font-size:12.5px;color:#5f6779}
-.capbar b{font-size:16px;color:#fff;font-variant-numeric:tabular-nums}
-.caphint{margin-left:auto;font-size:11.5px;color:#4a5162!important}
+.capbar span{font-size:12.5px;color:var(--dim)}
+.capbar b{font-size:16px;color:var(--hi);font-variant-numeric:tabular-nums}
+.caphint{margin-left:auto;font-size:11.5px;color:var(--dim2)!important}
 .capedit{font-size:14px}
 .pnlblock{border-radius:12px;padding:12px 14px;margin-bottom:12px;text-align:center}
-.pnlblock.up{background:#0d1a14;border:1px solid #1e3a28}
-.pnlblock.dn{background:#1a0f11;border:1px solid #3a2028}
+.pnlblock.up{background:var(--upbg);border:1px solid var(--upbd)}
+.pnlblock.dn{background:var(--dnbg3);border:1px solid var(--zc)}
 .pnlbig{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
-.pnlblock.up .pnlbig{color:#19c07a}
-.pnlblock.dn .pnlbig{color:#ff6b7d}
-.pnlsmall{font-size:12px;color:#7d8699;margin-top:3px}
-.pnlboom{font-size:12px;color:#ff8fa0;margin-top:5px;font-weight:600}
+.pnlblock.up .pnlbig{color:var(--up)}
+.pnlblock.dn .pnlbig{color:var(--dn)}
+.pnlsmall{font-size:12px;color:var(--mid);margin-top:3px}
+.pnlboom{font-size:12px;color:var(--dn3);margin-top:5px;font-weight:600}
 .mmseg{display:flex;gap:8px}
-.mmseg button{flex:1;padding:11px;border-radius:10px;border:1px solid #2a3448;background:#0a0c10;
-color:#7d8699;font-size:14px;font-weight:600;font-family:inherit}
-.mmseg button.on{border-color:#19c07a;background:#0d1a14;color:#19c07a}
+.mmseg button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--mid);font-size:14px;font-weight:600;font-family:inherit}
+.mmseg button.on{border-color:var(--up);background:var(--upbg);color:var(--up)}
 .mmbadge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600}
-.mmbadge.iso{background:#0f2e22;color:#4fe0a8}
-.mmbadge.cross{background:#3a1418;color:#ff8fa0}
-.shortwarn{font-size:11.5px;color:#8b6b6b;line-height:1.7;margin-top:8px;padding-left:2px}
-.ft{font-size:11px;color:#3d4352;text-align:center;margin-top:26px;line-height:1.9}
+.mmbadge.iso{background:var(--upbg2);color:var(--up2)}
+.mmbadge.cross{background:var(--dnbg2);color:var(--dn3)}
+.shortwarn{font-size:11.5px;color:var(--zg);line-height:1.7;margin-top:8px;padding-left:2px}
+.ft{font-size:11px;color:var(--faint);text-align:center;margin-top:26px;line-height:1.9}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
-border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
+border-top-color:var(--hi);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .quickrow{display:flex;gap:8px;margin:14px 0 2px}
-.quickrow button{flex:1;padding:12px 3px;border-radius:12px;border:1px solid #2a3448;
-background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inherit}
+.quickrow button{flex:1;padding:12px 3px;border-radius:12px;border:1px solid var(--bd2);
+background:var(--surf);color:var(--ze);font-size:13px;font-weight:600;font-family:inherit}
 .quickrow button:active{transform:scale(.97)}
 .hdrow{display:flex;align-items:flex-start;gap:10px}
 .hdrow>div{min-width:0;flex:1}
-.me{flex:0 0 auto;width:46px;height:46px;border-radius:50%;border:1px solid #2a3448;background:#12151d;
+.me{flex:0 0 auto;width:46px;height:46px;border-radius:50%;border:1px solid var(--bd2);background:var(--surf);
 padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:23px;
-line-height:1;font-family:inherit;color:#d2d8e6}
+line-height:1;font-family:inherit;color:var(--fg)}
 .me.on{border-color:#2f6bff;box-shadow:0 0 0 2px rgba(47,107,255,.28)}
 .me img{width:100%;height:100%;object-fit:cover;display:block}
 .mebig{width:64px;height:64px;font-size:32px}
 .mehead{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-.mename{width:100%;padding:8px 10px;border-radius:9px;border:1px solid #2a3448;background:#0a0c10;
-color:#fff;font-size:16px;font-weight:700;font-family:inherit}
+.mename{width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);
+color:var(--hi);font-size:16px;font-weight:700;font-family:inherit}
 .mename:focus{outline:none;border-color:#2f6bff}
 .mestat{display:flex;flex-direction:column;gap:9px}
 .msrow{display:flex;align-items:baseline;gap:8px;font-size:13px}
-.msrow>span:first-child{color:#5f6779;min-width:76px;font-size:12.5px}
+.msrow>span:first-child{color:var(--dim);min-width:76px;font-size:12.5px}
 .msrow>b{font-variant-numeric:tabular-nums}
 .mebig2{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
-.trade{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #202633}
-.trade .ts{font-weight:700;color:#fff;min-width:66px;font-size:14px}
-.trade .tp{font-size:11px;color:#5f6779}
+.trade{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}
+.trade .ts{font-weight:700;color:var(--hi);min-width:66px;font-size:14px}
+.trade .tp{font-size:11px;color:var(--dim)}
 .trade .tv{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
-.trade .td{font-size:11px;color:#4a5162;min-width:70px;text-align:right}
-.trade .tx{padding:4px 9px;border-radius:8px;border:1px solid #3a2830;background:#1a1216;
-color:#c98b96;font-size:11.5px;font-family:inherit}
+.trade .td{font-size:11px;color:var(--dim2);min-width:70px;text-align:right}
+.trade .tx{padding:4px 9px;border-radius:8px;border:1px solid var(--xbd);background:var(--xbg);
+color:var(--xfg);font-size:11.5px;font-family:inherit}
 /* 启动动画 */
-#splash{position:fixed;inset:0;z-index:9999;background:#0a0c10;
+#splash{position:fixed;inset:0;z-index:9999;background:var(--bg);
 display:flex;align-items:center;justify-content:center;
 transition:opacity .5s ease,transform .5s ease}
 #splash.gone{opacity:0;transform:scale(1.05);pointer-events:none}
@@ -259,18 +268,32 @@ transition:opacity .5s ease,transform .5s ease}
 .sp-logo .c2{animation-delay:.18s}
 .sp-logo .c3{animation-delay:.30s}
 @keyframes cIn{from{opacity:0}to{opacity:1}}
-.sp-name{font-size:22px;font-weight:800;letter-spacing:4px;color:#fff;opacity:0;
+.sp-name{font-size:22px;font-weight:800;letter-spacing:4px;color:var(--hi);opacity:0;
 animation:fIn .6s ease .44s forwards}
-.sp-sub{font-size:10.5px;letter-spacing:2.4px;color:#6b7488;opacity:0;
-animation:fIn .6s ease .58s forwards;margin-top:-8px}
+.sp-sub{font-size:11px;letter-spacing:2px;color:var(--zf);opacity:0;
+animation:fIn .6s ease .58s forwards;margin-top:-10px}
 @keyframes fIn{from{opacity:0;letter-spacing:8px}to{opacity:1;letter-spacing:4px}}
 .sp-bar{width:116px;height:2px;border-radius:2px;background:#161b26;overflow:hidden;
 margin-top:10px;opacity:0;animation:fadeIn .4s ease .7s forwards}
 .sp-bar i{display:block;width:38%;height:100%;border-radius:2px;
-background:linear-gradient(90deg,transparent,#19c07a,transparent);
+background:linear-gradient(90deg,transparent,var(--up),transparent);
 animation:spbar 1.15s ease-in-out infinite}
 @keyframes fadeIn{to{opacity:1}}
 @keyframes spbar{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+
+html[data-t="light"]{--z1:#fdf1f3;--z2:#eefaf3;--z3:#eefaf3;--z4:#eefaf3;--z5:#d6dbe4;--z6:#eef0f4;--z7:#eef0f3;--z8:#f7f8fa;--z9:#f0f2f6;--za:#e9efff;--zb:#fdecef;--zc:#e9d2d8;--zd:#7cc9a5;--ze:#596273;--zf:#5a6376;--zg:#a06a6a;--zh:#2b3140;--zi:#e0e4ea;--bg3:#eef3ff;--bg:#f4f5f7;--bg2:#f7f8fa;--surf:#ffffff;--surf2:#eef0f4;--bd:#e4e7ed;--bd2:#d6dbe4;--bd3:#dde1e8;--hair:#eef0f3;--upbg:#eaf7f0;--upbg2:#d8f2e5;--upbg3:#eaf7f0;--dnbg:#fdecef;--dnbg2:#fdecef;--dnbg3:#fdecef;--dnbg4:#fdecef;--acbg:#e9efff;--xbg:#f6edf0;--xbd:#e9d2d8;--xfg:#9b4a5a;--fg:#1c2028;--fg2:#2b3140;--fg2x:#2b3140;--fg3:#14171d;--fg4:#3a4152;--mid:#596273;--mid2:#4e5768;--dim:#6b7385;--dim2:#8a92a3;--faint:#b3bac7;--faint2:#b3bac7;--hi:#0d1016;--up:#0e9a62;--up2:#0a8f5c;--dn:#d92f45;--dn2:#d92f45;--dn3:#c22b40;--dn4:#c22b40;--acc:#2f6bff;--amber:#96650a;--amber2:#96650a;--gold:#b8860b;--upbd:#bfe6d2;--upbd2:#7cc9a5;--dnbd:#f3c4cc;--dnbd2:#e79aa6;--dnbd3:#e79aa6;--wabg:#fdf5e6;--wabd:#ecd9a8;--wabd2:#ecd9a8}
+
+/* 变量管不到的地方 */
+.btn,.acts a.p{color:#fff}
+html[data-t="light"] .modal{background:rgba(18,22,30,.42)}
+html[data-t="light"] .btn{box-shadow:0 8px 22px rgba(47,107,255,.28)}
+html[data-t="light"] #splash{background:#f4f5f7}
+html[data-t="light"] .card.go{background:#eefaf3}
+html[data-t="light"] .altcard.bad{background:#fdf1f3}
+html[data-t="light"] .pill.L{background:#fde8ec;color:#c22b40}
+html[data-t="light"] .pill.S{background:#e4f8ee;color:#0a8f5c}
+
+html[data-t="light"] .mgbar.over{background:#fff7f8;border-color:#f3ccd3}
 </style>
 </head>
 <body>
@@ -291,7 +314,7 @@ animation:spbar 1.15s ease-in-out infinite}
       </g>
     </svg>
     <div class="sp-name">今日信号</div>
-    <div class="sp-sub">20 日突破 · 日线</div>
+    <div class="sp-sub">执行 · 信任 · 坚持 · 成功</div>
     <div class="sp-bar"><i></i></div>
   </div>
 </div>
@@ -299,7 +322,7 @@ animation:spbar 1.15s ease-in-out infinite}
 <div class="hdrow">
   <div>
     <h1>今日信号</h1>
-    <div class="s" id="sub">v5.5 · Donchian 20 · 日线</div>
+    <div class="s" id="sub">v5.6 · Donchian 20 · 日线</div>
   </div>
   <button class="me" id="me-btn" onclick="setTAB('me')" title="我的"><span id="me-ico">🐟</span></button>
 </div>
@@ -413,9 +436,9 @@ animation:spbar 1.15s ease-in-out infinite}
 <div class="modal" id="gmodal" style="display:none">
   <div class="mbox">
     <div class="mhead">🔒 需要口令</div>
-    <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:14px">
+    <div style="font-size:13px;color:var(--mid2);line-height:1.8;margin-bottom:14px">
       这个工具不公开。请向分享给你的人索要今天的口令。<br>
-      <span style="font-size:11.5px;color:#4a5162">（站主可直接输入主密码，一次管一年）</span>
+      <span style="font-size:11.5px;color:var(--dim2)">（站主可直接输入主密码，一次管一年）</span>
     </div>
     <div class="mrow">
       <label>今日口令 或 主密码</label>
@@ -435,11 +458,11 @@ animation:spbar 1.15s ease-in-out infinite}
     <!-- 第 1 步：介绍 + 余额 -->
     <div id="w-step1">
       <div class="mhead">👋 欢迎使用</div>
-      <div style="font-size:13px;color:#8b93a6;line-height:1.8;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--mid2);line-height:1.8;margin-bottom:16px">
         这个工具帮你盯两件事：<br>
-        · <b style="color:#fff">主流币</b>突破 20 日高低点 → 开仓信号<br>
-        · <b style="color:#fff">山寨币</b>单日暴涨 30% → 做空信号（持 20 天）<br><br>
-        数据每天自动更新，账户和持仓只存在<b style="color:#fff">你这台手机</b>上。
+        · <b style="color:var(--hi)">主流币</b>突破 20 日高低点 → 开仓信号<br>
+        · <b style="color:var(--hi)">山寨币</b>单日暴涨 30% → 做空信号（持 20 天）<br><br>
+        数据每天自动更新，账户和持仓只存在<b style="color:var(--hi)">你这台手机</b>上。
       </div>
       <div class="mrow">
         <label>先填一下你的账户余额（USDT）</label>
@@ -454,32 +477,32 @@ animation:spbar 1.15s ease-in-out infinite}
 
     <!-- 第 2 步：逐仓警告（强制看） -->
     <div id="w-step2" style="display:none">
-      <div class="mhead" style="color:#ff8fa0">⚠️ 开始前必须知道</div>
-      <div style="font-size:13.5px;color:#d2d8e6;line-height:1.7;margin-bottom:14px">
-        山寨币做空只能用 <b style="color:#fff">1x 杠杆</b> + <b style="color:#fff">逐仓</b>。这是策略成立的前提。
+      <div class="mhead" style="color:var(--dn3)">⚠️ 开始前必须知道</div>
+      <div style="font-size:13.5px;color:var(--fg);line-height:1.7;margin-bottom:14px">
+        山寨币做空只能用 <b style="color:var(--hi)">1x 杠杆</b> + <b style="color:var(--hi)">逐仓</b>。这是策略成立的前提。
       </div>
 
-      <div style="background:#0d1a14;border:1px solid #1e3a28;border-radius:11px;padding:11px 13px;margin-bottom:9px">
-        <div style="font-size:14px;font-weight:700;color:#19c07a;margin-bottom:4px">✅ 逐仓（必须选这个）</div>
-        <div style="font-size:12.5px;color:#8b93a6;line-height:1.7">
+      <div style="background:var(--upbg);border:1px solid var(--upbd);border-radius:11px;padding:11px 13px;margin-bottom:9px">
+        <div style="font-size:14px;font-weight:700;color:var(--up);margin-bottom:4px">✅ 逐仓（必须选这个）</div>
+        <div style="font-size:12.5px;color:var(--mid2);line-height:1.7">
           价格翻倍 → 只亏光这一笔保证金<br>
           账户里其他钱完全不受影响
         </div>
       </div>
 
-      <div style="background:#1a0f11;border:1px solid #3a2028;border-radius:11px;padding:11px 13px;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700;color:#ff6b7d;margin-bottom:4px">❌ 全仓（绝对不能选）</div>
-        <div style="font-size:12.5px;color:#8b93a6;line-height:1.7">
-          价格翻倍 → 从<b style="color:#ff8fa0">整个账户</b>里扣<br>
+      <div style="background:var(--dnbg3);border:1px solid var(--zc);border-radius:11px;padding:11px 13px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;color:var(--dn);margin-bottom:4px">❌ 全仓（绝对不能选）</div>
+        <div style="font-size:12.5px;color:var(--mid2);line-height:1.7">
+          价格翻倍 → 从<b style="color:var(--dn3)">整个账户</b>里扣<br>
           一次就能亏掉全部本金
         </div>
       </div>
 
-      <div style="background:#12151d;border:1px solid #202633;border-radius:11px;padding:11px 13px;margin-bottom:14px">
-        <div style="font-size:12.5px;color:#8b93a6;line-height:1.8">
-          <b style="color:#fff">怎么设置：</b><br>
-          币安 → 持仓 → 点「杠杆」→ 保证金模式 → 选「<b style="color:#19c07a">逐仓</b>」<br><br>
-          <b style="color:#fff">注意：不设止损。</b>策略靠「价格翻倍自动爆仓」把亏损封死在这笔保证金里。
+      <div style="background:var(--surf);border:1px solid var(--bd);border-radius:11px;padding:11px 13px;margin-bottom:14px">
+        <div style="font-size:12.5px;color:var(--mid2);line-height:1.8">
+          <b style="color:var(--hi)">怎么设置：</b><br>
+          币安 → 持仓 → 点「杠杆」→ 保证金模式 → 选「<b style="color:var(--up)">逐仓</b>」<br><br>
+          <b style="color:var(--hi)">注意：不设止损。</b>策略靠「价格翻倍自动爆仓」把亏损封死在这笔保证金里。
         </div>
       </div>
 
@@ -575,9 +598,28 @@ animation:spbar 1.15s ease-in-out infinite}
   </div>
 </div>
 
+<!-- 账单来源：粘贴或选文件 -->
+<div class="modal" id="csvsrc">
+  <div class="mbox" style="max-width:360px">
+    <div class="mhead">导入账单</div>
+    <div class="mmsg">手机下载不下来就换个办法：把那个 CSV 用别的 App 打开、<b>全选复制</b>，
+然后把文字粘到下面。<br>Bitget / OKX 导出的账单也一样能粘。</div>
+    <textarea id="csv-src" class="bktext" spellcheck="false" autocapitalize="off"
+      placeholder="把 CSV 内容粘贴到这里"></textarea>
+    <input type="file" id="csv-src-file" accept=".csv,.txt,text/csv,text/plain"
+      style="display:none" onchange="csvRead(event)">
+    <div class="macts">
+      <button onclick="csvSrcFile()">📄 选文件</button>
+      <button class="p" onclick="csvSrcParse()">解析</button>
+    </div>
+    <div class="macts" style="margin-top:8px">
+      <button onclick="csvSrcClose()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 补录已平仓 -->
-<div class="modal" id="tmodal">
-  <div class="mbox" style="max-width:340px">
+<div class="modal" id="tmodal"><div class="mbox" style="max-width:340px">
     <div class="mhead">补录一单已平仓</div>
     <div class="mrow"><label>币种</label>
       <input id="t-sym" placeholder="如 AIN" autocapitalize="characters"></div>
@@ -631,7 +673,7 @@ animation:spbar 1.15s ease-in-out infinite}
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v5.5";   // 页面版本，用来判断是不是旧缓存
+const VER = "v5.6";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -1391,20 +1433,20 @@ function buildHoldCards(list, title) {
         '<div><span>现价</span><b>' + f(r.cur) + '</b></div>' +
         (isAlt
           ? '<div><span>已持有</span><b>' + heldDays(p, p.dir === "S") + '</b></div>' +
-            '<div><span>策略</span><b style="color:' + (p.dir === "S" ? "#4fe0a8" : "#f0be5a") + '">' +
+            '<div><span>策略</span><b style="color:' + (p.dir === "S" ? "var(--up2)" : "var(--amber2)") + '">' +
               ((p.dir === "S" ? "做空·持20天不设止损" : "自定义做多")) + '</b></div>'
           : '<div><span>原止损</span><b>' + f(p.sl) + '</b></div>' +
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
           (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
-        '<div><span>名义</span><b onclick="editPosNotional(\'' + r.sym + '\')" style="color:#8ab4ff">' +
+        '<div><span>名义</span><b onclick="editPosNotional(\'' + r.sym + '\')" style="color:var(--acc)">' +
           (p.qty * p.entry).toFixed(2) + 'U ✏️</b></div>' +
         '<div><span>价格变动</span><b>' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
         fundLineHTML(r.sym, p) +
         (isAlt
-          ? '<div style=""font-size:11.5px;color:#5f6779;margin-top:8px">' +
+          ? '<div style=""font-size:11.5px;color:var(--dim);margin-top:8px">' +
 
             (function(){
               let extra = "";
@@ -1424,11 +1466,11 @@ function buildHoldCards(list, title) {
                      "（此方向无回测策略，按自己的止损来）";
             })() + '</div>'
           : (r.sig
-            ? '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">' +
+            ? '<div style="font-size:11.5px;color:var(--dim);margin-top:8px">' +
               (r.sig === "L" ? "仍在 20 日高上方，多头信号有效" : "仍在 20 日低下方，空头信号有效") + '</div>'
-            : '<div style="font-size:11.5px;color:#5f6779;margin-top:8px">已回到区间内，靠移动止损管理</div>')) +
+            : '<div style="font-size:11.5px;color:var(--dim);margin-top:8px">已回到区间内，靠移动止损管理</div>')) +
         ((p.lev || 1) >= 10
-          ? '<div style="font-size:11.5px;color:#ff9aa6;margin-top:8px">⚠️ ' +
+          ? '<div style="font-size:11.5px;color:var(--dn4);margin-top:8px">⚠️ ' +
             (p.lev) + 'x：反向 ' + (100 / p.lev).toFixed(2) + '% 就爆仓' +
             (p.lev >= 20 ? '（这个距离比很多币的一根小时线还小）' : '') + '</div>'
           : '') +
@@ -1443,14 +1485,15 @@ function buildHoldCards(list, title) {
         '<div class="acts">' +
         '<a onclick="openAdd(\'' + r.sym + '\')">➕ 加仓</a>' +
         '<a onclick="openMargin(\'' + r.sym + '\')">💰 保证金</a></div>' +
-        '<div class="acts"><a class="closebtn" onclick="closePos(\'' + r.sym + '\')">✅ 我已平仓 / 删除记录</a></div>' +
+        '<div class="acts">' + exBtn(r.sym) +
+        '<a class="closebtn" onclick="closePos(\'' + r.sym + '\')">✅ 我已平仓 / 删除记录</a></div>' +
         (info.shouldClose
-          ? '<div class="warn" style="background:#1a0f11;border-color:#5c2028;color:#ff9aa6">🚪 ' +
+          ? '<div class="warn" style="background:var(--dnbg3);border-color:var(--dnbd2);color:var(--dn4)">🚪 ' +
             info.closeReason + ' → 现在平仓</div>' +
-            '<div class="acts"><a class="p" style="background:#e8484f;color:#fff" onclick="closePos(\'' + r.sym + '\')">我已平仓</a></div>'
+            '<div class="acts"><a class="p" style="background:var(--dn2);color:#fff" onclick="closePos(\'' + r.sym + '\')">我已平仓</a></div>'
           : (!isAlt && info.moved
             ? '<div class="acts"><a class="p" onclick="applySl(\'' + r.sym + '\')">✅ 已在币安改好止损</a></div>'
-            : (isAlt ? '' : '<div style="font-size:12px;color:#5f6779;margin-top:10px">止损未变，不用操作</div>'))) +
+            : (isAlt ? '' : '<div style="font-size:12px;color:var(--dim);margin-top:10px">止损未变，不用操作</div>'))) +
         '</div>';
       // 记录待更新的止损
       p._newSl = info.sl;
@@ -1562,7 +1605,7 @@ function render(rows, sigs) {
   const errs = rows.filter(r => r.err);
   if (errs.length) {
     h += '<div class="err">取数失败：' + errs.map(r => r.sym).join("、") +
-         '<br><span style="font-size:12px;color:#8b6b6b">检查手机网络，或换个时间再试</span></div>';
+         '<br><span style="font-size:12px;color:var(--zg)">检查手机网络，或换个时间再试</span></div>';
   }
   if (rows._dropped && rows._dropped.length) {
     h += '<div class="warn">跳过 ' +
@@ -1587,12 +1630,12 @@ function render(rows, sigs) {
         '<div><span>止损</span><b class="stop" onclick="copyOne(\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">' + f(s.stop) + ' 📋</b></div>' +
         '<div><span>杠杆</span><b class="lev">' + s.lev + 'x 📋</b></div>' +
         '<div><span>数量</span><b onclick="copyOne(\'' + qtyStr(s) + '\',this)">' + qtyStr(s) + ' 📋</b></div>' +
-        '<div><span>名义</span><b onclick="editSigNotional(\'' + s.sym + '\')" style="color:#8ab4ff">' +
+        '<div><span>名义</span><b onclick="editSigNotional(\'' + s.sym + '\')" style="color:var(--acc)">' +
           s.notional.toFixed(1) + 'U ✏️</b></div>' +
         '<div><span>保证金</span><b>' + (s.margin || (s.notional / s.lev)).toFixed(1) + 'U</b></div>' +
         '<div><span>实际风险</span><b class="' + (s.overRisk ? "bad" : "good") + '">' + s.risk.toFixed(2) + 'U</b></div>' +
         '</div>' +
-        (s.adjusted ? '<div class="warn" style="background:#141008;border-color:#3a2e10;color:#f0be5a">' +
+        (s.adjusted ? '<div class="warn" style="background:#141008;border-color:var(--wabd2);color:var(--amber2)">' +
           '📐 可用保证金不够，已自动缩减到 ' + s.notional.toFixed(2) + 'U' +
           '（风险 ' + s.riskPct.toFixed(1) + '%）</div>' : '') +
         (s.tooSmall ? '<div class="warn">⚠️ 仓位低于币安最小下单额 5U，这笔做不了</div>' : '') +
@@ -1613,6 +1656,7 @@ function render(rows, sigs) {
         '<a class="p" onclick="copyOrder(\'' + s.sym + '\',\'' + s.sig + '\',' + s.lev + ',\'' + qtyStr(s) + '\',\'' + (s.stop >= 1000 ? s.stop.toFixed(1) : s.stop.toFixed(3)) + '\',this)">📋 复制下单参数</a>' +
         '<a onclick="mark(\'' + s.sym + '\',\'' + s.sig + '\')">' +
         (isDone ? '已记录 ✓' : '我已开仓') + '</a>' +
+        exBtn(s.sym) +
         '</div></div>';
     });
   }
@@ -1633,12 +1677,12 @@ function render(rows, sigs) {
   ranked.forEach(({ r, up, dn }) => {
     if (r.err) {
       h += '<div class="w"><span class="n">' + r.sym + '</span>' +
-           '<span class="u" style="grid-column:2/4;color:#e8484f">失败</span></div>';
+           '<span class="u" style="grid-column:2/4;color:var(--dn2)">失败</span></div>';
       return;
     }
     if (r.sig) {
       h += '<div class="w"><span class="n">' + r.sym + '</span>' +
-           '<span class="u" style="grid-column:2/4;color:#19c07a">已触发 ' +
+           '<span class="u" style="grid-column:2/4;color:var(--up)">已触发 ' +
            (r.sig === "L" ? "做多" : "做空") + ' ↗</span></div>';
       return;
     }
@@ -1646,15 +1690,15 @@ function render(rows, sigs) {
       // 山寨币：只跟踪持仓，不给主系统信号
       const p2 = loadPos(r.sym);
       h += '<div class="w"><span class="n">' + r.sym +
-        ' <span style="font-size:9px;color:#8ab4ff">山寨</span></span>' +
-        '<span class="u" style="grid-column:2/4;color:#5f6779;font-size:11.5px">' +
+        ' <span style="font-size:9px;color:var(--acc)">山寨</span></span>' +
+        '<span class="u" style="grid-column:2/4;color:var(--dim);font-size:11.5px">' +
         (p2 ? '持仓跟踪中（走山寨做空规则：持20天、不设止损）' : '仅跟踪价格') +
         '</span></div>';
       return;
     }
     const isNear = closest && closest.r.sym === r.sym;
-    h += '<div class="w"' + (isNear ? ' style="background:#12151d;border-radius:8px"' : '') + '>' +
-      '<span class="n">' + r.sym + (isNear ? ' <span style="font-size:9px;color:#f0be5a">最近</span>' : '') + '</span>' +
+    h += '<div class="w"' + (isNear ? ' style="background:var(--surf);border-radius:8px"' : '') + '>' +
+      '<span class="n">' + r.sym + (isNear ? ' <span style="font-size:9px;color:var(--amber2)">最近</span>' : '') + '</span>' +
       '<span class="u">↑ <b>' + f(r.hh) + '</b><i>' + up.toFixed(1) + '%</i></span>' +
       '<span class="u">↓ <b>' + f(r.ll) + '</b><i>' + dn.toFixed(1) + '%</i></span></div>';
   });
@@ -1742,13 +1786,13 @@ function aggCardSym(sym, price, badgeColor, badgeTxt, lines, acts) {
   const qs = s.qty >= 1 ? s.qty.toFixed(2) : s.qty.toFixed(6);
   let h = '<div class="scard" style="border-left-color:' + badgeColor + '">' +
     '<div class="atop"><span class="anm">' + sym + '</span>' +
-    '<span class="sbadge" style="background:#2a1216;color:' + badgeTxt[1] + '">' +
+    '<span class="sbadge" style="background:var(--zb);color:' + badgeTxt[1] + '">' +
     badgeTxt[0] + '</span></div>';
   h += '<div class="aline">现价 <b class="good">' + f(price) + '</b>' +
        '　数量 <b>' + qs + '</b></div>';
-  h += '<div class="aline">杠杆 <b style="color:#ff9aa6">' + AGG_LEV + 'x</b>' +
+  h += '<div class="aline">杠杆 <b style="color:var(--dn4)">' + AGG_LEV + 'x</b>' +
        '　名义 <b>' + s.notional.toFixed(0) + 'U</b>' +
-       '　保证金 <b style="color:#ff9aa6">' + s.margin.toFixed(2) + 'U</b></div>';
+       '　保证金 <b style="color:var(--dn4)">' + s.margin.toFixed(2) + 'U</b></div>';
   h += lines;
   h += '<div class="aggwarn">💀 最高全亏：' + s.margin.toFixed(2) + 'U（本金归零）' +
        '<br>🎯 涨 10% → +' + (s.notional * 0.10).toFixed(0) + 'U（翻倍）' +
@@ -1762,9 +1806,9 @@ function altAggHTML() {
   const pbs = ALT.pullback || [], shorts = ALT.short || [];
   let h = '<h3>顶口 · 激进 · ' + (ALT.updated || "") + '</h3>';
 
-  h += '<div class="bigcard" style="border-color:#5c2028">';
-  h += '<div class="bchead"><span style="color:#ff6b7d">⚡ ' + AGG_LEV + 'x 杠杆</span>' +
-       '<span style="font-size:11px;color:#5f6779">本金 ' + CFG.CAPITAL.toFixed(0) + 'U</span></div>';
+  h += '<div class="bigcard" style="border-color:var(--dnbd2)">';
+  h += '<div class="bchead"><span style="color:var(--dn)">⚡ ' + AGG_LEV + 'x 杠杆</span>' +
+       '<span style="font-size:11px;color:var(--dim)">本金 ' + CFG.CAPITAL.toFixed(0) + 'U</span></div>';
   // 保证金比例选择
   h += '<div class="aggmg">' +
     '<div class="aggmg-t">保证金占本金</div>' +
@@ -1783,36 +1827,36 @@ function altAggHTML() {
       '<br>最高全亏 = ' + (CFG.CAPITAL * AGG_MARGIN_PCT).toFixed(2) + 'U（本金的 ' +
       Math.round(AGG_MARGIN_PCT * 100) + '%）</div>' +
   '</div>';
-  h += '<div class="sectrule" style="border-color:#5c2028;background:#1a0f11;color:#ff9aa6">' +
+  h += '<div class="sectrule" style="border-color:var(--dnbd2);background:var(--dnbg3);color:var(--dn4)">' +
        '<b>这是你要的模式：10% 波动 = 本金翻倍。</b><br>' +
        '代价：反向 10% 就归零，模拟 20000 次的存活率如下——<br>' +
-       '<span style="color:#ff6b7d">做空 10x 满仓：一年爆仓 95%，翻倍只剩 4.7%</span><br>' +
-       '<span style="color:#f0be5a">回踩做多 10x 满仓：一年爆仓 100%，翻倍 0%</span><br>' +
-       '<span style="color:#4fe0a8">唯一能活的：回踩做多 + 单笔风险 10~15% + 3~5x，翻倍 22~27%，爆仓 0%</span>' +
+       '<span style="color:var(--dn)">做空 10x 满仓：一年爆仓 95%，翻倍只剩 4.7%</span><br>' +
+       '<span style="color:var(--amber2)">回踩做多 10x 满仓：一年爆仓 100%，翻倍 0%</span><br>' +
+       '<span style="color:var(--up2)">唯一能活的：回踩做多 + 单笔风险 10~15% + 3~5x，翻倍 22~27%，爆仓 0%</span>' +
        '</div>';
 
   if (pbs.length) {
-    h += '<div class="secttl" style="color:#f0be5a">🔄 回踩做多（相对最耐活）</div>';
+    h += '<div class="secttl" style="color:var(--amber2)">🔄 回踩做多（相对最耐活）</div>';
     pbs.slice(0, 4).forEach(a => {
       const s = aggSize(a.price);
       const qs = s.qty >= 1 ? s.qty.toFixed(2) : s.qty.toFixed(6);
-      h += aggCardSym(a.sym, a.price, "#c9a227", ["暴涨 +" + a.pump_pct + "%", "#f0be5a"],
-        '<div class="aline">已回落 <b style="color:#f0be5a">-' + a.pullback + '%</b>' +
+      h += aggCardSym(a.sym, a.price, "var(--gold)", ["暴涨 +" + a.pump_pct + "%", "var(--amber2)"],
+        '<div class="aline">已回落 <b style="color:var(--amber2)">-' + a.pullback + '%</b>' +
         '　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
-        '<div class="aline">建议止损 <b style="color:#ffc94d">' + f(a.stop) + '</b>（-10%）</div>',
-        '<a class="p" style="background:#c9a227;color:#1a1408" ' +
+        '<div class="aline">建议止损 <b style="color:var(--amber)">' + f(a.stop) + '</b>（-10%）</div>',
+        '<a class="p" style="background:var(--gold);color:#1a1408" ' +
         'onclick="copyAgg(\'' + a.sym + '\',\'L\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + s.margin + ',' + s.notional + ',this)">📋 复制满仓参数</a>');
     });
   }
   if (shorts.length) {
-    h += '<div class="secttl" style="color:#ff9aa6;margin-top:16px">🎯 暴涨做空（爆仓率高，自行判断）</div>';
+    h += '<div class="secttl" style="color:var(--dn4);margin-top:16px">🎯 暴涨做空（爆仓率高，自行判断）</div>';
     shorts.slice(0, 4).forEach(a => {
       const s = aggSize(a.price);
       const qs = s.qty >= 1 ? s.qty.toFixed(2) : s.qty.toFixed(6);
-      h += aggCardSym(a.sym, a.price, "#e8484f", ["暴涨 +" + a.pump_pct + "%", "#ff9aa6"],
+      h += aggCardSym(a.sym, a.price, "var(--dn2)", ["暴涨 +" + a.pump_pct + "%", "var(--dn4)"],
         '<div class="aline">前20日 <b class="bad">+' + a.prior20 + '%</b>' +
         '　量能 <b>' + a.vol_ratio + 'x</b></div>',
-        '<a class="p" style="background:#e8484f;color:#fff" ' +
+        '<a class="p" style="background:var(--dn2);color:#fff" ' +
         'onclick="copyAgg(\'' + a.sym + '\',\'S\',' + a.price + ',' + (a.price * 2) + ',\'' + qs + '\',' + s.margin + ',' + s.notional + ',this)">📋 复制满仓参数</a>');
     });
   }
@@ -1826,10 +1870,10 @@ function altAggHTML() {
 /* ---- 主流 · 激进子页 ---- */
 function mainAggHTML(rows, sigs) {
   let h = '<h3>顶口 · 激进 · 主流</h3>';
-  h += '<div class="bigcard" style="border-color:#5c2028">';
-  h += '<div class="bchead"><span style="color:#ff6b7d">⚡ 满仓 ' + AGG_LEV + 'x</span>' +
-       '<span style="font-size:11px;color:#5f6779">信号 ' + sigs.length + ' 个</span></div>';
-  h += '<div class="sectrule" style="border-color:#5c2028;background:#1a0f11;color:#ff9aa6">' +
+  h += '<div class="bigcard" style="border-color:var(--dnbd2)">';
+  h += '<div class="bchead"><span style="color:var(--dn)">⚡ 满仓 ' + AGG_LEV + 'x</span>' +
+       '<span style="font-size:11px;color:var(--dim)">信号 ' + sigs.length + ' 个</span></div>';
+  h += '<div class="sectrule" style="border-color:var(--dnbd2);background:var(--dnbg3);color:var(--dn4)">' +
        '主流币波动小，10x 满仓相对安全一点，但仍然：<b>反向 10% 归零</b>。<br>' +
        'BTC 单日 3% 是常态，10x 意味着一天能亏 30% 本金。</div>';
 
@@ -1838,12 +1882,12 @@ function mainAggHTML(rows, sigs) {
       const sz = aggSize(s.cur);
       const qs = sz.qty >= 1 ? sz.qty.toFixed(2) : sz.qty.toFixed(6);
       const dirTxt = s.sig === "L" ? "做多" : "做空";
-      h += aggCardSym(s.sym, s.cur, s.sig === "L" ? "#19c07a" : "#e8484f",
-        [dirTxt, s.sig === "L" ? "#4fe0a8" : "#ff9aa6"],
-        '<div class="aline">止损 <b style="color:#ffc94d">' + f(s.stop) + '</b>' +
+      h += aggCardSym(s.sym, s.cur, s.sig === "L" ? "var(--up)" : "var(--dn2)",
+        [dirTxt, s.sig === "L" ? "var(--up2)" : "var(--dn4)"],
+        '<div class="aline">止损 <b style="color:var(--amber)">' + f(s.stop) + '</b>' +
         '（' + s.dist.toFixed(2) + '%）</div>' +
         '<div class="aline">20日高 ' + f(s.hh) + '　20日低 ' + f(s.ll) + '</div>',
-        '<a class="p" style="background:' + (s.sig === "L" ? "#19c07a" : "#e8484f") +
+        '<a class="p" style="background:' + (s.sig === "L" ? "var(--up)" : "var(--dn2)") +
         ';color:#fff" onclick="copyAgg(\'' + s.sym + '\',\'' + s.sig + '\',' + s.cur +
         ',' + s.stop + ',\'' + qs + '\',' + sz.margin + ',' + sz.notional + ',this)">📋 复制满仓参数</a>');
     });
@@ -1880,35 +1924,35 @@ function csvDraftHTML() {
   const d = CSV_DRAFT;
   if (!d) return '';
   if (d.err) {
-    return '<div class="warn" style="background:#160b0d;border-color:#3a1a1f;color:#ff9aa6">' +
+    return '<div class="warn" style="background:var(--dnbg4);border-color:var(--dnbd);color:var(--dn4)">' +
       '没认出来：' + d.err +
-      '<br><span style="font-size:11px;color:#8b93a6">把表头那两行发我，我照着改解析。</span></div>';
+      '<br><span style="font-size:11px;color:var(--mid2)">把表头那两行发我，我照着改解析。</span></div>';
   }
   const rows = d.rows || [];
   const on = rows.filter(function (r) { return r.on; }).length;
-  let h = '<div class="secttl" style="color:#8ab4ff;margin-top:14px">识别到 ' + rows.length +
-          ' 个持仓　<span id="csv-count" style="font-size:12px;color:#8b93a6">已选 ' + on + '</span></div>';
-  h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-bottom:8px">' +
+  let h = '<div class="secttl" style="color:var(--acc);margin-top:14px">识别到 ' + rows.length +
+          ' 个持仓　<span id="csv-count" style="font-size:12px;color:var(--mid2)">已选 ' + on + '</span></div>';
+  h += '<div class="aline" style="font-size:11px;color:var(--dim);margin-bottom:8px">' +
        (d.mode === "pos" ? '按「持仓快照」读的' : '按「成交记录」合并的') +
        '　原始 ' + d.lines + ' 行</div>';
   rows.forEach(function (r, i) {
     h += '<div class="altcard" style="border-left:2.5px solid ' +
-        (r.dir === "L" ? "#1e7a52" : "#8a2b36") + '">' +
+        (r.dir === "L" ? "var(--upbd2)" : "var(--dnbd3)") + '">' +
       '<div class="atop"><span class="anm">' + r.sym + '</span>' +
       '<span class="' + (r.dir === "L" ? "aw" : "ab") + '">' + (r.dir === "L" ? "多" : "空") + '</span></div>' +
       '<div class="aline">均价 <b>' + f(r.entry) + '</b>　数量 <b>' + r.qty + '</b></div>' +
-      '<div class="aline" style="font-size:11px;color:#5f6779">名义 <b>' +
+      '<div class="aline" style="font-size:11px;color:var(--dim)">名义 <b>' +
       (r.qty * r.entry).toFixed(2) + 'U</b>　' + r.n + ' 笔' +
-      (r.exist ? '　<b style="color:#ff9aa6">本机已有，跳过</b>' : '') + '</div>' +
-      '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#8b93a6;margin-top:7px">' +
+      (r.exist ? '　<b style="color:var(--dn4)">本机已有，跳过</b>' : '') + '</div>' +
+      '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mid2);margin-top:7px">' +
       '<input type="checkbox" ' + (r.on ? 'checked' : '') +
-      ' onchange="csvToggle(' + i + ',this.checked)" style="width:19px;height:19px;accent-color:#19c07a">' +
+      ' onchange="csvToggle(' + i + ',this.checked)" style="width:19px;height:19px;accent-color:var(--up)">' +
       '导入这条</label>' +
       '</div>';
   });
   h += '<div class="acts" style="margin-top:10px">' +
        '<a class="p" id="csv-go" onclick="csvApply()">✅ 确认导入 ' + on + ' 条</a></div>';
-  h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-top:8px">' +
+  h += '<div class="aline" style="font-size:11px;color:var(--dim);margin-top:8px">' +
        '导入的仓位按 <b>1x + 全仓</b> 记，进去后在持仓页可以改保证金模式。</div>';
   return h;
 }
@@ -1926,8 +1970,30 @@ function csvToggle(i, v) {
   }
 }
 
-function csvPick() { const f = $("csv-file"); if (f) f.click(); }
+function csvPick() { csvSrc(); }
 function csvClear() { CSV_DRAFT = null; csvClose(); }
+
+/* 来源弹窗：手机下不了文件就粘贴 */
+function csvSrc() {
+  const ta = $("csv-src");
+  if (ta) ta.value = "";
+  const m = $("csvsrc");
+  if (m) m.classList.add("on");
+  setTimeout(function () { try { ta.focus(); } catch (e) {} }, 150);
+}
+function csvSrcClose() { const m = $("csvsrc"); if (m) m.classList.remove("on"); }
+function csvSrcFile() { const f = $("csv-src-file"); if (f) f.click(); }
+
+function csvSrcParse() {
+  const raw = ($("csv-src").value || "").trim();
+  if (!raw) { alert("先把 CSV 内容粘贴进来，或者点「选文件」"); return; }
+  let d;
+  try { d = parseTradeCSV(raw); }
+  catch (err) { d = { err: err.message, rows: [] }; }
+  CSV_DRAFT = d;
+  csvSrcClose();
+  csvOpen();
+}
 
 function csvOpen() {
   if (!CSV_DRAFT) return;
@@ -1951,6 +2017,7 @@ function csvRead(e) {
     try { d = parseTradeCSV(String(r.result || "")); }
     catch (err) { d = { err: err.message, rows: [] }; }
     CSV_DRAFT = d;
+    csvSrcClose();
     csvOpen();
   };
   r.onerror = function () { alert("读文件失败"); };
@@ -2164,9 +2231,9 @@ function fundOf(sym, p) {
 
 function fundLineHTML(sym, p) {
   const f0 = fundOf(sym, p);
-  const base = '<div style="font-size:11.5px;color:#7d8699;margin-top:8px">';
+  const base = '<div style="font-size:11.5px;color:var(--mid);margin-top:8px">';
   if (!f0) {
-    return '<div style="font-size:11.5px;color:#3d4352;margin-top:8px">' +
+    return '<div style="font-size:11.5px;color:var(--faint);margin-top:8px">' +
            '资金费：没数据（进「套利」页拉一次）</div>';
   }
   const up = f0.dailyU >= 0;
@@ -2203,28 +2270,28 @@ function arbHTML() {
        '<a onclick="renderArb(true)">🔄 刷新</a></div>';
   h += '<div class="tideintro">💰 <b>正费率 = 多头付钱给空头。</b>' +
        '所以「买现货 + 做空永续」两头对冲，币价涨跌都不亏，只收这笔租。<br>' +
-       '<span style="color:#f0be5a">年化低于 10% 基本被手续费吃掉；优先挑 24h 额 5000 万以上的。</span><br>' +
-       '<span style="font-size:11px;color:#5f6779">数据 ' + (FUND.updated || "—") +
+       '<span style="color:var(--amber2)">年化低于 10% 基本被手续费吃掉；优先挑 24h 额 5000 万以上的。</span><br>' +
+       '<span style="font-size:11px;color:var(--dim)">数据 ' + (FUND.updated || "—") +
        ' · 币安 U 本位永续 · 共 ' + (FUND.count || 0) + ' 个合约</span></div>';
 
   const top = FUND.top || [];
   h += '<div class="bigcard">';
-  h += '<div class="bchead"><span style="color:#4fe0a8">📈 正费率榜</span>' +
-       '<span style="font-size:11px;color:#5f6779">' + top.length + ' 个 · 按年化排</span></div>';
+  h += '<div class="bchead"><span style="color:var(--up2)">📈 正费率榜</span>' +
+       '<span style="font-size:11px;color:var(--dim)">' + top.length + ' 个 · 按年化排</span></div>';
   if (!top.length) {
     h += '<div class="sc2empty">现在没有正费率的</div>';
   } else {
     top.forEach(function (r) {
       const strong = r.ann >= 20;
       h += '<div class="altcard" style="border-left:2.5px solid ' +
-        (strong ? "#1e7a52" : "#2a3448") + '">' +
+        (strong ? "var(--upbd2)" : "var(--bd2)") + '">' +
         '<div class="atop"><span class="anm">' + r.s + '</span>' +
-        '<span class="aw" style="' + (strong ? "background:#0b1710;color:#4fe0a8"
-                                             : "background:#16224a;color:#8ab4ff") +
+        '<span class="aw" style="' + (strong ? "background:var(--upbg3);color:var(--up2)"
+                                             : "background:var(--acbg);color:var(--acc)") +
         '">年化 ' + r.ann.toFixed(0) + '%</span></div>' +
         '<div class="aline">每 <b>' + r.i + ' 小时</b> <b class="good">' + r.rate.toFixed(4) + '%</b>' +
         '　下次 <b>' + tillNext(r.next) + '</b></div>' +
-        '<div class="aline" style="font-size:11px;color:#5f6779">24h 额 <b>' +
+        '<div class="aline" style="font-size:11px;color:var(--dim)">24h 额 <b>' +
         (r.vol / 1e6).toFixed(1) + 'M</b>　基差 ' + (r.basis >= 0 ? "+" : "") +
         r.basis.toFixed(2) + '%　标记价 ' + f(r.price) + '</div>' +
         '</div>';
@@ -2238,10 +2305,10 @@ function arbHTML() {
     neg.forEach(function (r) {
       h += '<div class="altcard bad"><div class="atop"><span class="anm">' + r.s + '</span>' +
         '<span class="ab">年化 ' + r.ann.toFixed(0) + '%</span></div>' +
-        '<div class="aline" style="font-size:11.5px;color:#7d8699">每 ' + r.i + ' 小时 ' +
+        '<div class="aline" style="font-size:11.5px;color:var(--mid)">每 ' + r.i + ' 小时 ' +
         r.rate.toFixed(4) + '%　24h 额 ' + (r.vol / 1e6).toFixed(1) + 'M</div></div>';
     });
-    h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-top:6px">' +
+    h += '<div class="aline" style="font-size:11px;color:var(--dim);margin-top:6px">' +
          '负费率要「借币卖现货 + 做多永续」才对冲，借币成本和门槛高很多，一般不碰。</div>';
     h += '</details>';
   }
@@ -2302,8 +2369,8 @@ function altSigHTML() {
   const pbs = ALT.pullback || [], shorts = ALT.short || [];
   const ageMin = ALT_AT ? Math.round((Date.now() - ALT_AT) / 60000) : -1;
   const freshTxt = ageMin < 0 ? "" :
-    (ageMin <= 5 ? '<span style="color:#19c07a">刚刚同步</span>' :
-      '<span style="color:' + (ageMin > 150 ? "#ff6b7d" : "#f0be5a") + '">' +
+    (ageMin <= 5 ? '<span style="color:var(--up)">刚刚同步</span>' :
+      '<span style="color:' + (ageMin > 150 ? "var(--dn)" : "var(--amber2)") + '">' +
       ageMin + ' 分钟前拉取</span>');
   let h = '<h3>顶口 · 信号 · ' + (ALT.updated || "") +
     '　' + freshTxt + '</h3>';
@@ -2314,31 +2381,31 @@ function altSigHTML() {
        '两条腿都持 20 天。</div>';
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>🎯 今日信号</span>' +
-       '<span style="font-size:11px;color:#5f6779">做多 ' + pbs.length +
+       '<span style="font-size:11px;color:var(--dim)">做多 ' + pbs.length +
        ' · 做空 ' + shorts.length + '</span></div>';
 
   /* —— 回踩做多 —— */
-  h += '<div class="secttl" style="color:#f0be5a">🔄 回踩回升（做多）</div>';
-  h += '<div class="sectrule" style="border-color:#3a2e10;background:#161106">' +
+  h += '<div class="secttl" style="color:var(--amber2)">🔄 回踩回升（做多）</div>';
+  h += '<div class="sectrule" style="border-color:var(--wabd2);background:#161106">' +
        '暴涨后回落 + 昨天收涨 = 洗盘结束。止损 -10%，持 20 天，不止盈。<br>' +
-       '<span style="color:#f0be5a">⚠️ 144 笔样本 t=1.64，未达显著，胜率仅 16~29%</span></div>';
+       '<span style="color:var(--amber2)">⚠️ 144 笔样本 t=1.64，未达显著，胜率仅 16~29%</span></div>';
   if (pbs.length) {
     pbs.forEach(a => {
       const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
       const qty = posUsd / a.price;
       const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
-      h += '<div class="scard" style="border-left-color:#c9a227">' +
+      h += '<div class="scard" style="border-left-color:var(--gold)">' +
         '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="sbadge" style="background:#3a2e10;color:#f0be5a">暴涨 +' + a.pump_pct + '%</span></div>' +
+        '<span class="sbadge" style="background:var(--wabd2);color:var(--amber2)">暴涨 +' + a.pump_pct + '%</span></div>' +
         '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
         '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
         (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
-        '<div class="aline">已回落 <b style="color:#f0be5a">-' + a.pullback + '%</b>' +
+        '<div class="aline">已回落 <b style="color:var(--amber2)">-' + a.pullback + '%</b>' +
         '（' + a.days_since + ' 天前暴涨）　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
-        '<div class="aline">止损 <b style="color:#ffc94d">' + f(a.stop) + '</b>（-10%）' +
+        '<div class="aline">止损 <b style="color:var(--amber)">' + f(a.stop) + '</b>（-10%）' +
         '　仓位 ' + posUsd.toFixed(2) + 'U　数量 ' + qs + '</div>' +
         '<div class="acts">' +
-        '<a class="p" style="background:#c9a227;color:#1a1408" ' +
+        '<a class="p" style="background:var(--gold);color:#1a1408" ' +
         'onclick="copyPullback(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ',this)">📋 复制做多参数</a>' +
         '<a onclick="markPull(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ')">我已开多</a>' +
         '</div></div>';
@@ -2348,8 +2415,8 @@ function altSigHTML() {
   }
 
   /* —— 做空 —— */
-  h += '<div class="secttl" style="color:#ff9aa6;margin-top:16px">🎯 暴涨做空</div>';
-  h += '<div class="sectrule" style="border-color:#3a1a1f;background:#160b0d">' +
+  h += '<div class="secttl" style="color:var(--dn4);margin-top:16px">🎯 暴涨做空</div>';
+  h += '<div class="sectrule" style="border-color:var(--dnbd);background:var(--dnbg4)">' +
        '回测 435 个暴涨事件：胜率 69% · 中位 +20.6% · t=4.55<br>' +
        '<b>1x 杠杆、不挂止损、持有 20 天、每笔 5% 本金</b></div>';
   if (shorts.length) {
@@ -2366,9 +2433,9 @@ function altSigHTML() {
         '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
         '　名义 <b>' + posUsd.toFixed(2) + 'U</b>　杠杆 <b class="lev">' + lev + 'x</b></div>' +
         '<div class="aline">保证金 <b>' + mg.toFixed(2) + 'U</b>　数量 <b>' + qs + '</b>　持有 <b>20 天</b></div>' +
-        '<div class="aline" style="font-size:11.5px;color:#5f6779">前20日 ' + a.prior20 +
+        '<div class="aline" style="font-size:11.5px;color:var(--dim)">前20日 ' + a.prior20 +
         '%　量能 ' + a.vol_ratio + 'x　风险分 ' + a.risk + '　不设止损</div>' +
-        (lev > 1 ? '<div class="warn" style="background:#160b0d;border-color:#3a1a1f;color:#ff9aa6">' +
+        (lev > 1 ? '<div class="warn" style="background:var(--dnbg4);border-color:var(--dnbd);color:var(--dn4)">' +
           '⚠️ 这单你调到了 ' + lev + 'x。69% 胜率是 1x 前提，超过 1x 结论不成立</div>' : '') +
         '<div class="levrow">' +
           [1, 2, 3].map(function (L) {
@@ -2379,9 +2446,10 @@ function altSigHTML() {
           'inputmode="decimal" placeholder="自定"><button onclick="setAltLevCustom(\'' + a.sym + '\')">用</button></span>' +
         '</div>' +
         '<div class="acts">' +
-        '<a class="p" style="background:#e8484f;color:#fff" ' +
+        '<a class="p" style="background:var(--dn2);color:#fff" ' +
         'onclick="copyShort(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',this,' + lev + ')">📋 复制参数</a>' +
-        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',' + lev + ')">我已开空</a></div>' +
+        '<a onclick="markAlt(\'' + a.sym + '\',' + a.price + ',' + posUsd + ',\'' + qs + '\',' + lev + ')">我已开空</a>' +
+        exBtn(a.sym) + '</div>' +
         '</div>';
     });
   } else {
@@ -2400,26 +2468,26 @@ function altWatchHTML() {
   let h = '<h3>顶口 · 观察 · ' + (ALT.updated || "") + '</h3>';
 
   /* —— 可能暴涨 —— */
-  h += '<div class="bigcard" style="border-color:#1e3a28">';
-  h += '<div class="bchead"><span style="color:#4fe0a8">🚀 可能暴涨</span>' +
-       '<span style="font-size:11px;color:#5f6779">' + hot.length + ' 个</span></div>';
-  h += '<div class="sectrule" style="border-color:#1e3a28;background:#0b1710;color:#8fd9b6">' +
+  h += '<div class="bigcard" style="border-color:var(--upbd)">';
+  h += '<div class="bchead"><span style="color:var(--up2)">🚀 可能暴涨</span>' +
+       '<span style="font-size:11px;color:var(--dim)">' + hot.length + ' 个</span></div>';
+  h += '<div class="sectrule" style="border-color:var(--upbd);background:var(--upbg3);color:#8fd9b6">' +
        '研究结论：<b>已经在动的币更容易暴涨</b>（不是横盘蓄势）。<br>' +
        '综合 6 个特征打分：振幅 · 距20日低点 · 5日涨幅 · 量比 · ATR扩张 · 前1日涨幅<br>' +
-       '<span style="color:#4fe0a8">回测：评分前 1% 的当日暴涨率 8.32%，是平均的 12.5 倍</span>' +
+       '<span style="color:var(--up2)">回测：评分前 1% 的当日暴涨率 8.32%，是平均的 12.5 倍</span>' +
        '　<span style="opacity:.7">（92% 的时候仍不涨，只是概率高）</span></div>';
   if (hot.length) {
     hot.forEach(a => {
-      h += '<div class="altcard" style="border-left:2.5px solid #1e7a52">' +
+      h += '<div class="altcard" style="border-left:2.5px solid var(--upbd2)">' +
         '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="aw" style="background:#0b1710;color:#4fe0a8">评分 ' + a.score + '</span></div>' +
+        '<span class="aw" style="background:var(--upbg3);color:var(--up2)">评分 ' + a.score + '</span></div>' +
         '<div class="aline">现价 <b>' + f(a.price) + '</b>' +
         '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
         (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
         '<div class="aline">5日 <b class="good">+' + a.r5 + '%</b>' +
         '　振幅 <b>' + a.amp + '%</b>' +
         '　量比 <b class="good">' + a.vr5 + 'x</b></div>' +
-        '<div class="aline" style="font-size:11px;color:#5f6779">' +
+        '<div class="aline" style="font-size:11px;color:var(--dim)">' +
         '距20日低 +' + a.gap + '%　ATR扩张 ' + a.atrc + 'x　距20日高 ' + a.to_hi + '%</div>' +
         '</div>';
     });
@@ -2427,15 +2495,15 @@ function altWatchHTML() {
   h += '</div>';
 
   /* —— 可能暴跌 —— */
-  h += '<div class="bigcard" style="border-color:#3a1a1f">';
-  h += '<div class="bchead"><span style="color:#ff9aa6">💀 可能暴跌</span>' +
-       '<span style="font-size:11px;color:#5f6779">' + cold.length + ' 个</span></div>';
-  h += '<div class="sectrule" style="border-color:#3a1a1f;background:#160b0d;color:#e8a0aa">' +
+  h += '<div class="bigcard" style="border-color:var(--dnbd)">';
+  h += '<div class="bchead"><span style="color:var(--dn4)">💀 可能暴跌</span>' +
+       '<span style="font-size:11px;color:var(--dim)">' + cold.length + ' 个</span></div>';
+  h += '<div class="sectrule" style="border-color:var(--dnbd);background:var(--dnbg4);color:#e8a0aa">' +
        '已经涨过一波、且还没跌透的币。<b>这类是做空标的，不是买入标的。</b><br>' +
        '<span style="opacity:.8">历史：暴涨后 20 天中位数 +20.6%（做空盈利），但 31% 会继续涨</span></div>';
   if (cold.length) {
     cold.forEach(a => {
-      h += '<div class="altcard bad" style="border-left:2.5px solid #8a2b36">' +
+      h += '<div class="altcard bad" style="border-left:2.5px solid var(--dnbd3)">' +
         '<div class="atop"><span class="anm">' + a.sym + '</span>' +
         '<span class="ab">评分 ' + a.score + '</span></div>' +
         '<div class="aline">现价 <b>' + f(a.price) + '</b>' +
@@ -2443,7 +2511,7 @@ function altWatchHTML() {
         (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
         '<div class="aline">5日 <b class="bad">+' + a.r5 + '%</b>' +
         '　20日 <b class="bad">+' + a.r20 + '%</b></div>' +
-        '<div class="aline" style="font-size:11px;color:#5f6779">' +
+        '<div class="aline" style="font-size:11px;color:var(--dim)">' +
         '距20日高 ' + a.to_hi + '%　量比 ' + a.vr5 + 'x　振幅 ' + a.amp + '%</div>' +
         '</div>';
     });
@@ -2492,7 +2560,7 @@ function renderMainChg(rows) {
       (c >= 0 ? "+" : "") + c.toFixed(2) + '%</span>' +
       '<span class="movpx">' + f(r.cur) + '</span></div>';
     h += '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:#4b5266;' +
-      'padding:0 0 7px;border-bottom:1px solid #181c26">' +
+      'padding:0 0 7px;border-bottom:1px solid var(--z7)">' +
       '<span>20日高 ' + f(r.hh) + '</span><span>20日低 ' + f(r.ll) + '</span></div>';
   });
   h += '</div>';
@@ -2623,7 +2691,7 @@ function npCheck() {
   if (!r) { msg.textContent = "填入保证金 或 当前盈亏"; return; }
   const notional = r.qty * e;
   const lev = isFinite(m) && m > 0 ? notional / m : 1;
-  msg.innerHTML = "数量 <b style='color:#8ab4ff'>" + r.qty.toFixed(6) + "</b>（" + r.how + "）<br>" +
+  msg.innerHTML = "数量 <b style='color:var(--acc)'>" + r.qty.toFixed(6) + "</b>（" + r.how + "）<br>" +
     "名义 <b>" + notional.toFixed(2) + "U</b>　杠杆 <b>" + lev.toFixed(2) + "x</b>" +
     (isFinite(pnl) && pnl !== 0 ? "　现价 <b>" + _npCur + "</b>" : "");
 }
@@ -2882,19 +2950,19 @@ function openSettle() {
     h = '<div style="max-height:320px;overflow-y:auto;margin-bottom:12px">';
     list.forEach((r, i) => {
       total += r.pnl;
-      h += '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #202633">' +
-        '<span style="font-weight:700;color:#fff;min-width:70px">' + r.sym + '</span>' +
-        '<span style="font-size:11.5px;color:#5f6779">' + r.dir + '</span>' +
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)">' +
+        '<span style="font-weight:700;color:var(--hi);min-width:70px">' + r.sym + '</span>' +
+        '<span style="font-size:11.5px;color:var(--dim)">' + r.dir + '</span>' +
         '<span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:' +
-          (r.pnl >= 0 ? "#19c07a" : "#ff6b7d") + '">' + (r.pnl >= 0 ? "+" : "") + r.pnl.toFixed(2) + 'U</span>' +
-        '<span style="font-size:11px;color:#4a5162">' + (r.date || "") + '</span>' +
-        '<button onclick="delSettle(' + i + ')" style="padding:4px 10px;border-radius:8px;border:1px solid #3a2830;' +
-          'background:#1a1216;color:#c98b96;font-size:12px;font-family:inherit">删</button>' +
+          (r.pnl >= 0 ? "var(--up)" : "var(--dn)") + '">' + (r.pnl >= 0 ? "+" : "") + r.pnl.toFixed(2) + 'U</span>' +
+        '<span style="font-size:11px;color:var(--dim2)">' + (r.date || "") + '</span>' +
+        '<button onclick="delSettle(' + i + ')" style="padding:4px 10px;border-radius:8px;border:1px solid var(--xbd);' +
+          'background:var(--xbg);color:var(--xfg);font-size:12px;font-family:inherit">删</button>' +
         '</div>';
     });
     h += '</div>';
-    h += '<div style="font-size:12.5px;color:#7d8699;margin-bottom:12px">累计已结算：' +
-      '<b style="color:' + (total >= 0 ? "#19c07a" : "#ff6b7d") + '">' +
+    h += '<div style="font-size:12.5px;color:var(--mid);margin-bottom:12px">累计已结算：' +
+      '<b style="color:' + (total >= 0 ? "var(--up)" : "var(--dn)") + '">' +
       (total >= 0 ? "+" : "") + total.toFixed(2) + 'U</b></div>';
   }
   h += '<div class="macts"><button onclick="closeSettle()">关闭</button></div>';
@@ -2918,6 +2986,83 @@ function delSettle(i) {
 }
 
 function closeSettle() { $("smodal").classList.remove("on"); }
+
+/* ============ 主题：跟随系统 / 手动 ============ */
+
+let THEME = "auto";
+
+function _themeLight() {
+  return THEME === "light" ||
+    (THEME === "auto" && window.matchMedia("(prefers-color-scheme: light)").matches);
+}
+
+function applyTheme() {
+  const l = _themeLight();
+  document.documentElement.setAttribute("data-t", l ? "light" : "dark");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", l ? "#f4f5f7" : "#0a0c10");
+}
+
+function loadTheme() {
+  try {
+    const v = localStorage.getItem("theme");
+    if (v === "auto" || v === "light" || v === "dark") THEME = v;
+  } catch (e) {}
+  applyTheme();
+}
+
+function setTheme(v) {
+  if (v !== "auto" && v !== "light" && v !== "dark") return;
+  THEME = v;
+  try { localStorage.setItem("theme", v); } catch (e) {}
+  applyTheme();
+  if (TAB === "me") renderMe();
+}
+
+try {
+  window.matchMedia("(prefers-color-scheme: light)")
+    .addEventListener("change", function () { if (THEME === "auto") applyTheme(); });
+} catch (e) {}
+
+/* ============ 交易所选择（决定「去下单」跳到哪） ============ */
+
+const EXCH_LIST = [
+  { k: "binance", n: "币安" },
+  { k: "bitget",  n: "Bitget" },
+  { k: "okx",     n: "欧易" }
+];
+let EXCH = "binance";
+
+function loadExch() {
+  try {
+    const v = localStorage.getItem("exch");
+    if (v === "binance" || v === "bitget" || v === "okx") EXCH = v;
+  } catch (e) {}
+}
+
+function exName() {
+  const e = EXCH_LIST.find(function (x) { return x.k === EXCH; });
+  return e ? e.n : "币安";
+}
+
+function setExch(k) {
+  if (k !== "binance" && k !== "bitget" && k !== "okx") return;
+  EXCH = k;
+  try { localStorage.setItem("exch", k); } catch (e) {}
+  if (TAB === "me") renderMe();
+  else if (window._last) render(window._last.rows, window._last.sigs);
+}
+
+function exLink(sym) {
+  const s = String(sym || "").toUpperCase();
+  if (EXCH === "bitget") return "https://www.bitget.com/zh-CN/futures/usdt/" + s + "USDT";
+  if (EXCH === "okx") return "https://www.okx.com/zh-hans/trade-swap/" + s.toLowerCase() + "-usdt-swap";
+  return "https://www.binance.com/zh-CN/futures/" + s + "USDT";
+}
+
+function exBtn(sym) {
+  return '<a href="' + exLink(sym) + '" target="_blank" rel="noopener">↗ ' + exName() + ' 看</a>';
+}
 
 /* ============ 我的：资料 + 历史盈亏 ============ */
 
@@ -3009,7 +3154,7 @@ function renderMe() {
 function meHTML() {
   const s = meStats();
   const eq = BASE_CAP + FLOAT_PNL;
-  const col = function (v) { return v >= 0 ? "#19c07a" : "#ff6b7d"; };
+  const col = function (v) { return v >= 0 ? "var(--up)" : "var(--dn)"; };
   const sgn = function (v) { return (v >= 0 ? "+" : "") + v.toFixed(2); };
 
   let h = '<h3>我的</h3>';
@@ -3021,7 +3166,7 @@ function meHTML() {
     '<div style="flex:1;min-width:0">' +
     '<input id="me-name" class="mename" value="' + escA(ME.name) + '" maxlength="12" ' +
     'onchange="meSaveName(this.value)" placeholder="给自己起个名字">' +
-    '<div style="font-size:11px;color:#5f6779;margin-top:4px">点头像换图片 · 点名字改称呼</div>' +
+    '<div style="font-size:11px;color:var(--dim);margin-top:4px">点头像换图片 · 点名字改称呼</div>' +
     '</div></div>';
   h += '<input type="file" id="me-file" accept="image/*" style="display:none" ' +
        'onchange="meUpload(event)">';
@@ -3036,20 +3181,45 @@ function meHTML() {
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>账户</span></div>';
   h += '<div class="mebig2" style="color:' + col(FLOAT_PNL) + '">' + eq.toFixed(2) +
-       ' <span style="font-size:15px;color:#5f6779">U</span></div>';
+       ' <span style="font-size:15px;color:var(--dim)">U</span></div>';
   h += '<div class="mestat" style="margin-top:12px">' +
     '<div class="msrow"><span>本金</span><b>' + BASE_CAP.toFixed(2) + ' U</b>' +
-    '<span style="margin-left:auto;color:#5f6779;font-size:11.5px">不含浮动</span></div>' +
+    '<span style="margin-left:auto;color:var(--dim);font-size:11.5px">不含浮动</span></div>' +
     '<div class="msrow"><span>浮动盈亏</span><b style="color:' + col(FLOAT_PNL) + '">' +
     sgn(FLOAT_PNL) + ' U</b></div>' +
     '<div class="msrow"><span>已实现累计</span><b style="color:' + col(s.total) + '">' +
     sgn(s.total) + ' U</b></div>' +
     '</div></div>';
 
+  /* 外观 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>外观</span>' +
+    '<span style="font-size:11px;color:var(--dim)">默认跟系统走</span></div>';
+  h += '<div class="levrow" style="margin-top:0">' +
+    [["auto", "跟随系统"], ["light", "浅色"], ["dark", "深色"]].map(function (x) {
+      return '<button class="levbtn' + (THEME === x[0] ? " on" : "") + '" ' +
+        'onclick="setTheme(\'' + x[0] + '\')">' + x[1] + '</button>';
+    }).join('') + '</div>';
+  h += '</div>';
+
+  /* 交易所 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>交易所在用哪个</span>' +
+    '<span style="font-size:11px;color:var(--dim)">「去下单」跳这里</span></div>';
+  h += '<div class="levrow" style="margin-top:0">' +
+    EXCH_LIST.map(function (e) {
+      return '<button class="levbtn' + (EXCH === e.k ? " on" : "") + '" ' +
+        'onclick="setExch(\'' + e.k + '\')">' + e.n + '</button>';
+    }).join('') + '</div>';
+  h += '<div style="font-size:11px;color:var(--dim);margin-top:9px">' +
+    '现在用 ' + exName() + '：信号卡和持仓卡的「↗ 看」会打开 ' + exName() + ' 的对应合约页。' +
+    '<br>资金费率榜单目前只有币安的数据。</div>';
+  h += '</div>';
+
   /* 历史盈亏 */
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>历史盈亏</span>' +
-    '<span style="font-size:11px;color:#5f6779">' + s.n + ' 笔</span></div>';
+    '<span style="font-size:11px;color:var(--dim)">' + s.n + ' 笔</span></div>';
   if (!s.n) {
     h += '<div class="sc2empty">还没有平仓记录<br>' +
       '<span style="font-size:11px">持仓里点「我已平仓」会自动记一笔</span></div>';
@@ -3058,17 +3228,17 @@ function meHTML() {
     h += '<div class="mestat">' +
       '<div class="msrow"><span>总盈亏</span><b class="mebig2" style="font-size:23px;color:' +
       col(s.total) + '">' + sgn(s.total) + ' U</b></div>' +
-      '<div class="msrow"><span>总盈利</span><b style="color:#19c07a">+' + s.win.toFixed(2) +
-      ' U</b><span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.wins +
+      '<div class="msrow"><span>总盈利</span><b style="color:var(--up)">+' + s.win.toFixed(2) +
+      ' U</b><span style="margin-left:auto;font-size:11.5px;color:var(--dim)">' + s.wins +
       ' 笔赚</span></div>' +
-      '<div class="msrow"><span>总亏损</span><b style="color:#ff6b7d">' + s.loss.toFixed(2) +
-      ' U</b><span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.losses +
+      '<div class="msrow"><span>总亏损</span><b style="color:var(--dn)">' + s.loss.toFixed(2) +
+      ' U</b><span style="margin-left:auto;font-size:11.5px;color:var(--dim)">' + s.losses +
       ' 笔亏</span></div>' +
       '<div class="msrow"><span>胜率</span><b>' + wr.toFixed(0) + '%</b>' +
-      '<span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.wins + ' / ' +
+      '<span style="margin-left:auto;font-size:11.5px;color:var(--dim)">' + s.wins + ' / ' +
       s.n + '</span></div>' +
-      '<div class="msrow"><span>最好 / 最差</span><b style="color:#19c07a">+' + s.best.toFixed(2) +
-      '</b><b style="color:#ff6b7d;margin-left:8px">' + s.worst.toFixed(2) + '</b></div>' +
+      '<div class="msrow"><span>最好 / 最差</span><b style="color:var(--up)">+' + s.best.toFixed(2) +
+      '</b><b style="color:var(--dn);margin-left:8px">' + s.worst.toFixed(2) + '</b></div>' +
       '</div>';
   }
   h += '</div>';
@@ -3076,7 +3246,7 @@ function meHTML() {
   /* 历史仓位列表 */
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>历史仓位</span>' +
-    '<span style="font-size:11px;color:#5f6779">按时间倒序</span></div>';
+    '<span style="font-size:11px;color:var(--dim)">按时间倒序</span></div>';
   if (s.list.length) {
     s.list.slice().reverse().forEach(function (r, ri) {
       const i = s.list.length - 1 - ri;
@@ -3086,7 +3256,7 @@ function meHTML() {
         '<span class="tp">' + escA(r.dir || "") + '</span>' +
         '<span class="tv" style="color:' + col(v) + '">' + (v >= 0 ? "+" : "") + v.toFixed(2) + 'U' +
         (typeof r.pct === "number"
-          ? '<span style="font-size:11px;color:#5f6779"> ' + (r.pct >= 0 ? "+" : "") +
+          ? '<span style="font-size:11px;color:var(--dim)"> ' + (r.pct >= 0 ? "+" : "") +
             r.pct.toFixed(1) + '%</span>' : '') + '</span>' +
         '<span class="td">' + escA(r.date || "") + '</span>' +
         '<button class="tx" onclick="meDelTrade(' + i + ')">删</button>' +
@@ -3252,7 +3422,7 @@ function refreshCapBar() {
     el.textContent = BASE_CAP.toFixed(2) + " U";
     const raw0 = BASE_CAP * CFG.RISK;
     h.innerHTML = "单笔 " + (CFG.RISK * 100) + "% = " + raw0.toFixed(2) + "U" +
-      "　<span style='color:#5f6779'>浮动盈亏计算中…</span>";
+      "　<span style='color:var(--dim)'>浮动盈亏计算中…</span>";
     return;
   }
   const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
@@ -3262,7 +3432,7 @@ function refreshCapBar() {
   let extra = "";
   if (Math.abs(FLOAT_PNL) > 0.005) {
     extra = "<br>基准 " + BASE_CAP.toFixed(2) + "　浮动 <b style='color:" +
-      (FLOAT_PNL >= 0 ? "#19c07a" : "#ff6b7d") + "'>" +
+      (FLOAT_PNL >= 0 ? "var(--up)" : "var(--dn)") + "'>" +
       (FLOAT_PNL >= 0 ? "+" : "") + FLOAT_PNL.toFixed(2) + "U</b>";
   }
   h.innerHTML = "单笔 " + (CFG.RISK * 100) + "% = " + raw.toFixed(2) + "U" +
@@ -3277,7 +3447,7 @@ function openCap() {
   const fn = $("c-floating");
   if (fn) {
     fn.innerHTML = "当前浮动盈亏 <b style='color:" +
-      (FLOAT_PNL >= 0 ? "#19c07a" : "#ff6b7d") + "'>" +
+      (FLOAT_PNL >= 0 ? "var(--up)" : "var(--dn)") + "'>" +
       (FLOAT_PNL >= 0 ? "+" : "") + FLOAT_PNL.toFixed(2) + "U</b>" +
       "　（系统会自动加在总权益里，不要重复填）<br>" +
       "合计权益 = 本金 " + BASE_CAP.toFixed(2) + " + 浮动 " +
@@ -3332,11 +3502,11 @@ function onCapEdit() {
   const raw = v * r;
   const use = Math.max(raw, MIN_NOTIONAL);
   const lvNow = _tmpLev || CFG.LEV_FIXED || 0;
-  const lvTxt = lvNow > 0 ? ("<b style='color:#8ab4ff'>" + lvNow + "x</b>（自定义）")
+  const lvTxt = lvNow > 0 ? ("<b style='color:var(--acc)'>" + lvNow + "x</b>（自定义）")
                           : "自动";
   msg.innerHTML = "杠杆 " + lvTxt + "　单笔风险 <b>" + raw.toFixed(2) + "U</b>" +
     (use > raw + 0.001
-      ? "　→　不足币安下限，实际用 <b style='color:#ffc94d'>" + use.toFixed(2) +
+      ? "　→　不足币安下限，实际用 <b style='color:var(--amber)'>" + use.toFixed(2) +
         "U</b>（" + (use / v * 100).toFixed(2) + "%）"
       : "") +
     "<br>最多同时 2 仓，总占用 <b>" + (use * 2).toFixed(2) + "U</b>";
@@ -3400,17 +3570,17 @@ function onMarginEdit() {
   if (!isFinite(usd) || usd <= 0) { msg.textContent = "填入保证金金额"; return; }
   const notional = p.qty * p.entry;
   const lev = notional / usd;
-  msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　→　杠杆 <b style='color:#8ab4ff'>" +
+  msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　→　杠杆 <b style='color:var(--acc)'>" +
     lev.toFixed(2) + "x</b>";
   if (lev < 0.99) {
-    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 保证金比名义还大，说明记录的数量偏小，盈亏会算少</span>";
+    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 保证金比名义还大，说明记录的数量偏小，盈亏会算少</span>";
   }
   if (_mmMode === "cross") {
-    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 全仓模式下，价格暴涨会吃掉整个账户余额，" +
+    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 全仓模式下，价格暴涨会吃掉整个账户余额，" +
       "不再是「最多亏这笔」</span>";
     msg.classList.add("bad");
   } else {
-    msg.innerHTML += "<br><span style='color:#4fe0a8'>逐仓：最多亏光这笔保证金</span>";
+    msg.innerHTML += "<br><span style='color:var(--up2)'>逐仓：最多亏光这笔保证金</span>";
   }
 }
 
@@ -3473,7 +3643,7 @@ function onAddEdit() {
   const newMargin = oldMargin + usd;
   const newEntry = (oldQty * p.entry + addQty * pr) / newQty;
   const newLev = (newQty * newEntry) / newMargin;
-  msg.innerHTML = "加仓数量 <b style='color:#8ab4ff'>" + addQty.toFixed(6) + "</b><br>" +
+  msg.innerHTML = "加仓数量 <b style='color:var(--acc)'>" + addQty.toFixed(6) + "</b><br>" +
     "均价 <b>" + fmtP(oldEntry(p)) + " → " + fmtP(newEntry) + "</b>　" +
     "总量 <b>" + newQty.toFixed(6) + "</b><br>" +
     "保证金 <b>" + oldMargin.toFixed(2) + " → " + newMargin.toFixed(2) + " U</b>　" +
@@ -3545,10 +3715,10 @@ function updateModalMsg() {
   const riskUsd = CFG.CAPITAL * CFG.RISK;
   const qty = riskUsd / (Math.abs(e - s));
   const valid = _editing.dir === "L" ? s < e : s > e;
-  msg.innerHTML = "止损距离 <b style='color:#ffc94d'>" + (dist * 100).toFixed(2) + "%</b>　" +
-    "按此价位，数量应为 <b style='color:#8ab4ff'>" + qty.toFixed(6) + "</b>";
+  msg.innerHTML = "止损距离 <b style='color:var(--amber)'>" + (dist * 100).toFixed(2) + "%</b>　" +
+    "按此价位，数量应为 <b style='color:var(--acc)'>" + qty.toFixed(6) + "</b>";
   if (!valid) {
-    msg.innerHTML += "<br><span style='color:#ff8fa0'>⚠️ 方向不对：做多时止损要低于入场价，做空要高于</span>";
+    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 方向不对：做多时止损要低于入场价，做空要高于</span>";
     msg.classList.add("bad");
   }
 }
@@ -3641,7 +3811,8 @@ function exportPos(el) {
 /* ============ 数据备份 / 恢复（全部本地数据打包） ============ */
 const BK_VER = 1;
 const BK_EXTRA = ["capital", "riskpct", "levfixed", "risk", "aggmargin",
-                  "welcomeDone", "tab", "settlements", "altlev", "me_name", "me_avatar"];
+                  "welcomeDone", "tab", "settlements", "altlev", "me_name", "me_avatar",
+                  "exch", "theme"];
 
 function bkManaged(k) {
   return k.indexOf("pos_") === 0 || k.indexOf("sub_") === 0 || BK_EXTRA.indexOf(k) >= 0;
@@ -3677,7 +3848,7 @@ function openBackup(isImport) {
     });
     $("bk-title").textContent = "📤 已打包 · 持仓 " + n + " 条";
     msg.innerHTML = "点「复制」→ 到另一个端（App 或浏览器）粘贴导入。<br>" +
-      "<span style='color:#5f6779'>共 " + ta.value.length + " 字符，" +
+      "<span style='color:var(--dim)'>共 " + ta.value.length + " 字符，" +
       (data ? Object.keys(data).length : 0) + " 项</span>";
   }
   $("bkmodal").classList.add("on");
@@ -3915,7 +4086,9 @@ function startApp() {
   _appStarted = true;
   $("gmodal").style.display = "none";
 
+  loadTheme();
   loadMe();
+  loadExch();
   syncTabs();
   loadCap();
   loadPriceCache();
