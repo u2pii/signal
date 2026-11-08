@@ -3061,9 +3061,21 @@ function exLink(sym) {
   return "https://www.binance.com/zh-CN/futures/" + s + "USDT";
 }
 
+function _isNativeApp() {
+  const C = window.Capacitor;
+  return !!(C && C.isNative);
+}
+
 function exBtn(sym) {
   const s = String(sym || "").toUpperCase();
-  return '<div class="exto"><a onclick="copySym(\'' + s + '\',this)">复制 ' + s + '</a></div>';
+  let h = '<div class="exto">' +
+    '<a onclick="copySym(\'' + s + '\',this)">复制 ' + s + '</a>';
+  /* 只有在真浏览器里才给跳转按钮：App 里的系统 WebView 会把它拐去警告页 */
+  if (!_isNativeApp()) {
+    h += '<a href="' + exLink(s) + '" onclick="return openEx(\'' + s + '\')">去 ' +
+         exName() + ' ↗</a>';
+  }
+  return h + '</div>';
 }
 
 function copySym(sym, el) {
