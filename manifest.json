@@ -1,0 +1,26 @@
+{
+  "name": "今日信号 · 交易看板",
+  "short_name": "信号",
+  "description": "主流币信号、山寨顶口、实盘持仓，一个页面看完",
+  "id": "/signal/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "主流信号", "short_name": "主流", "url": "./?t=main", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "山寨顶口", "short_name": "顶口", "url": "./?t=alt", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "我的持仓", "short_name": "持仓", "url": "./?t=pos", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
