@@ -223,11 +223,40 @@ border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertica
 .quickrow button{flex:1;padding:12px 3px;border-radius:12px;border:1px solid #2a3448;
 background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inherit}
 .quickrow button:active{transform:scale(.97)}
+.hdrow{display:flex;align-items:flex-start;gap:10px}
+.hdrow>div{min-width:0;flex:1}
+.me{flex:0 0 auto;width:46px;height:46px;border-radius:50%;border:1px solid #2a3448;background:#12151d;
+padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:23px;
+line-height:1;font-family:inherit;color:#d2d8e6}
+.me.on{border-color:#2f6bff;box-shadow:0 0 0 2px rgba(47,107,255,.28)}
+.me img{width:100%;height:100%;object-fit:cover;display:block}
+.mebig{width:64px;height:64px;font-size:32px}
+.mehead{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.mename{width:100%;padding:8px 10px;border-radius:9px;border:1px solid #2a3448;background:#0a0c10;
+color:#fff;font-size:16px;font-weight:700;font-family:inherit}
+.mename:focus{outline:none;border-color:#2f6bff}
+.mestat{display:flex;flex-direction:column;gap:9px}
+.msrow{display:flex;align-items:baseline;gap:8px;font-size:13px}
+.msrow>span:first-child{color:#5f6779;min-width:76px;font-size:12.5px}
+.msrow>b{font-variant-numeric:tabular-nums}
+.mebig2{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
+.trade{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #202633}
+.trade .ts{font-weight:700;color:#fff;min-width:66px;font-size:14px}
+.trade .tp{font-size:11px;color:#5f6779}
+.trade .tv{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+.trade .td{font-size:11px;color:#4a5162;min-width:70px;text-align:right}
+.trade .tx{padding:4px 9px;border-radius:8px;border:1px solid #3a2830;background:#1a1216;
+color:#c98b96;font-size:11.5px;font-family:inherit}
 </style>
 </head>
 <body>
-<h1>今日信号</h1>
-<div class="s" id="sub">v5.3 · Donchian 20 · 日线</div>
+<div class="hdrow">
+  <div>
+    <h1>今日信号</h1>
+    <div class="s" id="sub">v5.4 · Donchian 20 · 日线</div>
+  </div>
+  <button class="me" id="me-btn" onclick="setTAB('me')" title="我的"><span id="me-ico">🐟</span></button>
+</div>
 
 <button class="addpos" onclick="openNewPos()">➕ 记录我的持仓（任意币）</button>
 
@@ -252,6 +281,7 @@ background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inhe
 <div class="tabs">
   <button id="tab-main" class="on" onclick="setTAB('main')">主流</button>
   <button id="tab-alt" onclick="setTAB('alt')">顶口</button>
+  <button id="tab-arb" onclick="setTAB('arb')">套利</button>
   <button id="tab-pos" onclick="setTAB('pos')">持仓</button>
 </div>
 <div class="subbar" id="subbar"></div>
@@ -499,6 +529,24 @@ background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inhe
   </div>
 </div>
 
+<!-- 补录已平仓 -->
+<div class="modal" id="tmodal">
+  <div class="mbox" style="max-width:340px">
+    <div class="mhead">补录一单已平仓</div>
+    <div class="mrow"><label>币种</label>
+      <input id="t-sym" placeholder="如 AIN" autocapitalize="characters"></div>
+    <div class="mrow"><label>盈亏（USDT，亏了填负数）</label>
+      <input id="t-pnl" type="number" step="any" inputmode="decimal" placeholder="如 41.32"></div>
+    <div class="mrow"><label>日期</label>
+      <input id="t-date" type="date"></div>
+    <div class="mmsg" id="t-msg">补录只进统计，<b>不改你现在的本金</b>（本金里应该已经算过这笔了）</div>
+    <div class="macts">
+      <button onclick="closeTrade()">取消</button>
+      <button class="p" onclick="saveTrade()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 调整保证金弹窗 -->
 <div class="modal" id="mmodal">
   <div class="mbox">
@@ -537,7 +585,7 @@ background:#12151d;color:#9aa3b5;font-size:13px;font-weight:600;font-family:inhe
 
 <script>
 /* ============ 配置 ============ */
-const VER = "v5.3";   // 页面版本，用来判断是不是旧缓存
+const VER = "v5.4";   // 页面版本，用来判断是不是旧缓存
 
 const CFG = {
   N: 20,            // 突破周期
@@ -716,7 +764,9 @@ function closePos(sym) {
     BASE_CAP = Math.max(BASE_CAP + realized, 0.01);
     try { localStorage.setItem("capital", String(BASE_CAP)); } catch (e) {}
     addSettlement({ sym: sym, dir: p.dir === "L" ? "多" : "空",
-                    pnl: realized, date: new Date().toISOString().slice(0, 10) });
+                    pnl: realized, date: new Date().toISOString().slice(0, 10),
+                    entry: p.entry, exit: r.cur, mg: mg2,
+                    pct: mg2 > 0 ? (realized / mg2 * 100) : 0 });
     alert("已结算：" + (realized >= 0 ? "+" : "") + realized.toFixed(2) + "U\n基准余额 → " + BASE_CAP.toFixed(2) + "U");
   }
   del(sym);
@@ -1306,6 +1356,7 @@ function buildHoldCards(list, title) {
         '<div><span>价格变动</span><b>' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
+        fundLineHTML(r.sym, p) +
         (isAlt
           ? '<div style=""font-size:11.5px;color:#5f6779;margin-top:8px">' +
 
@@ -1398,6 +1449,20 @@ function render(rows, sigs) {
         (ms.over ? '<div class="mgnote">⚠️ 超过 70%，没有余量开新仓了</div>' : '') +
         '</div>';
     }
+    if (allHold.length && FUND) {
+      let fsum = 0, fok = false;
+      allHold.forEach(function (r) {
+        const f0 = fundOf(r.sym, r.pos);
+        if (f0) { fsum += f0.dailyU; fok = true; }
+      });
+      if (fok) {
+        ph += '<div class="mgbar"><div><span>资金费合计</span><b class="' +
+          (fsum >= 0 ? "good" : "bad") + '">' + (fsum >= 0 ? "+" : "") +
+          fsum.toFixed(2) + 'U/天</b></div>' +
+          '<div><span>' + (fsum >= 0 ? "在收租" : "在付钱") + '</span>' +
+          '<span>' + (fsum >= 0 ? "+" : "") + (fsum * 30).toFixed(1) + 'U/月</span></div></div>';
+      }
+    }
     ph += allHold.length
       ? buildHoldCards(allHold, "全部持仓")
       : '<div class="empty"><b>还没有任何持仓</b>点上面「记录我的持仓」添加</div>';
@@ -1407,6 +1472,22 @@ function render(rows, sigs) {
     }
     $("out").innerHTML = ph;
     $("alts").innerHTML = "";
+    syncTabs();
+    return;
+  }
+  // ===== 我的 =====
+  if (TAB === "me") {
+    $("out").innerHTML = "";
+    $("alts").innerHTML = "";
+    renderMe();
+    syncTabs();
+    return;
+  }
+  // ===== 套利页：资金费率 =====
+  if (TAB === "arb") {
+    $("out").innerHTML = "";
+    $("alts").innerHTML = "";
+    renderArb();
     syncTabs();
     return;
   }
@@ -1984,6 +2065,141 @@ function parseTradeCSV(text) {
   });
   if (!out.length) throw new Error("所有币的净持仓都是 0（看起来都已经平仓了）");
   return { mode: "trade", rows: out, lines: body.length };
+}
+
+/* ============ 套利 · 资金费率 ============ */
+
+let FUND = null, FUND_AT = 0, FUND_LOADING = false;
+
+async function loadFund(force) {
+  const now = Date.now();
+  if (!force && FUND && now - FUND_AT < 600000) return FUND;
+  try {
+    const r = await fetch("funding.json?t=" + now);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d || !d.top) throw new Error("格式不对");
+    FUND = d; FUND_AT = now;
+    try { localStorage.setItem("fund_cache", JSON.stringify({ t: now, d: d })); } catch (e) {}
+    return FUND;
+  } catch (e) {
+    if (!FUND) {
+      try {
+        const c = JSON.parse(localStorage.getItem("fund_cache") || "null");
+        if (c && c.d && c.d.top) { FUND = c.d; FUND_AT = c.t || 0; }
+      } catch (e2) {}
+    }
+    return FUND;
+  }
+}
+
+function tillNext(ms) {
+  const d = ms - Date.now();
+  if (!isFinite(d) || d <= 0) return "即将";
+  const hh = Math.floor(d / 3600000);
+  const mm = Math.floor((d % 3600000) / 60000);
+  return hh > 0 ? hh + " 小时 " + mm + " 分" : mm + " 分";
+}
+
+/* 某个仓位每天的资金费：正 = 收，负 = 付 */
+function fundOf(sym, p) {
+  if (!FUND || !FUND.map || !p) return null;
+  const e = FUND.map[String(sym || "")];
+  if (!e || typeof e.r !== "number") return null;
+  const ivl = e.i > 0 ? e.i : 8;
+  const dayPct = e.r * (24 / ivl) * 100;              // 每天占名义 %
+  const notional = (p.qty || 0) * (p.entry || 0);
+  const sign = p.dir === "S" ? 1 : -1;                // 正费率时空头收钱
+  return {
+    rate: e.r * 100, ivl: ivl, dayPct: dayPct,
+    dailyU: notional * (dayPct / 100) * sign, next: e.n
+  };
+}
+
+function fundLineHTML(sym, p) {
+  const f0 = fundOf(sym, p);
+  const base = '<div style="font-size:11.5px;color:#7d8699;margin-top:8px">';
+  if (!f0) {
+    return '<div style="font-size:11.5px;color:#3d4352;margin-top:8px">' +
+           '资金费：没数据（进「套利」页拉一次）</div>';
+  }
+  const up = f0.dailyU >= 0;
+  const pct = f0.dayPct * (p.dir === "S" ? 1 : -1);
+  const vtxt = Math.abs(f0.dailyU) < 0.01 ? f0.dailyU.toFixed(3) : f0.dailyU.toFixed(2);
+  return base + '资金费（' + (p.dir === "S" ? "空头" : "多头") + '收付）　费率 <b>' +
+    f0.rate.toFixed(4) + '%/' + f0.ivl + 'h</b>　≈ <b class="' + (up ? "good" : "bad") + '">' +
+    (up ? "+" : "") + vtxt + 'U/天</b>' +
+    '（' + (pct >= 0 ? "+" : "") + pct.toFixed(3) + '% 名义）</div>';
+}
+
+async function renderArb(force) {
+  const box = $("out");
+  if (!box || TAB !== "arb") return;
+  if (force) FUND = null;
+  if (!FUND && !FUND_LOADING) {
+    FUND_LOADING = true;
+    box.innerHTML = '<div class="empty">正在拉资金费率…</div>';
+    await loadFund(true);
+    FUND_LOADING = false;
+    if (TAB !== "arb") return;
+  }
+  box.innerHTML = arbHTML();
+}
+
+function arbHTML() {
+  let h = '<h3>套利 · 资金费率</h3>';
+  if (!FUND) {
+    return h + '<div class="empty"><b>还没拿到数据</b>资金费率由后台每 2 小时生成一次，' +
+      '刚上线时可能还是空的。<br>过一会儿再进来看看。</div>' +
+      '<div class="acts"><a onclick="renderArb(true)">🔄 重新拉</a></div>';
+  }
+  h += '<div class="acts" style="margin-bottom:10px">' +
+       '<a onclick="renderArb(true)">🔄 刷新</a></div>';
+  h += '<div class="tideintro">💰 <b>正费率 = 多头付钱给空头。</b>' +
+       '所以「买现货 + 做空永续」两头对冲，币价涨跌都不亏，只收这笔租。<br>' +
+       '<span style="color:#f0be5a">年化低于 10% 基本被手续费吃掉；优先挑 24h 额 5000 万以上的。</span><br>' +
+       '<span style="font-size:11px;color:#5f6779">数据 ' + (FUND.updated || "—") +
+       ' · 币安 U 本位永续 · 共 ' + (FUND.count || 0) + ' 个合约</span></div>';
+
+  const top = FUND.top || [];
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span style="color:#4fe0a8">📈 正费率榜</span>' +
+       '<span style="font-size:11px;color:#5f6779">' + top.length + ' 个 · 按年化排</span></div>';
+  if (!top.length) {
+    h += '<div class="sc2empty">现在没有正费率的</div>';
+  } else {
+    top.forEach(function (r) {
+      const strong = r.ann >= 20;
+      h += '<div class="altcard" style="border-left:2.5px solid ' +
+        (strong ? "#1e7a52" : "#2a3448") + '">' +
+        '<div class="atop"><span class="anm">' + r.s + '</span>' +
+        '<span class="aw" style="' + (strong ? "background:#0b1710;color:#4fe0a8"
+                                             : "background:#16224a;color:#8ab4ff") +
+        '">年化 ' + r.ann.toFixed(0) + '%</span></div>' +
+        '<div class="aline">每 <b>' + r.i + ' 小时</b> <b class="good">' + r.rate.toFixed(4) + '%</b>' +
+        '　下次 <b>' + tillNext(r.next) + '</b></div>' +
+        '<div class="aline" style="font-size:11px;color:#5f6779">24h 额 <b>' +
+        (r.vol / 1e6).toFixed(1) + 'M</b>　基差 ' + (r.basis >= 0 ? "+" : "") +
+        r.basis.toFixed(2) + '%　标记价 ' + f(r.price) + '</div>' +
+        '</div>';
+    });
+  }
+  h += '</div>';
+
+  const neg = FUND.neg || [];
+  if (neg.length) {
+    h += '<details class="morebox"><summary>反过来：负费率 ' + neg.length + ' 个（做多收租）</summary>';
+    neg.forEach(function (r) {
+      h += '<div class="altcard bad"><div class="atop"><span class="anm">' + r.s + '</span>' +
+        '<span class="ab">年化 ' + r.ann.toFixed(0) + '%</span></div>' +
+        '<div class="aline" style="font-size:11.5px;color:#7d8699">每 ' + r.i + ' 小时 ' +
+        r.rate.toFixed(4) + '%　24h 额 ' + (r.vol / 1e6).toFixed(1) + 'M</div></div>';
+    });
+    h += '<div class="aline" style="font-size:11px;color:#5f6779;margin-top:6px">' +
+         '负费率要「借币卖现货 + 做多永续」才对冲，借币成本和门槛高很多，一般不碰。</div>';
+    h += '</details>';
+  }
+  return h;
 }
 
 /* ============ 山寨页：三个子页 ============ */
@@ -2657,8 +2873,227 @@ function delSettle(i) {
 
 function closeSettle() { $("smodal").classList.remove("on"); }
 
+/* ============ 我的：资料 + 历史盈亏 ============ */
+
+let ME = { name: "我", avatar: "🐟" };
+
+const ME_EMOJI = ["🐟", "🐳", "🦈", "🐙", "🦀", "🐢", "🦅", "🐺", "🦊", "🐼", "😎", "👤"];
+
+function loadMe() {
+  try {
+    const n = localStorage.getItem("me_name");
+    const a = localStorage.getItem("me_avatar");
+    if (n) ME.name = n;
+    if (a) ME.avatar = a;
+  } catch (e) {}
+}
+
+function escA(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function meAvatarHTML() {
+  const a = ME.avatar || "🐟";
+  if (a.indexOf("data:image") === 0) return '<img src="' + a + '" alt="">';
+  return '<span>' + escA(a) + '</span>';
+}
+
+function meSaveName(v) {
+  ME.name = String(v || "").trim().slice(0, 12) || "我";
+  try { localStorage.setItem("me_name", ME.name); } catch (e) {}
+  const el = $("me-name");
+  if (el) el.value = ME.name;
+}
+
+function meSetAvatar(v) {
+  ME.avatar = v;
+  try { localStorage.setItem("me_avatar", v); } catch (e) {}
+  renderMe();
+  syncTabs();
+}
+
+function mePick() { const f = $("me-file"); if (f) f.click(); }
+
+function meUpload(e) {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function () {
+    const img = new Image();
+    img.onload = function () {
+      try {
+        const c = document.createElement("canvas");
+        c.width = c.height = 96;
+        const g = c.getContext("2d");
+        const sd = Math.min(img.width, img.height);
+        g.drawImage(img, (img.width - sd) / 2, (img.height - sd) / 2, sd, sd, 0, 0, 96, 96);
+        const d = c.toDataURL("image/jpeg", 0.82);
+        if (d.length > 150000) { alert("图片太大，换个更小的"); return; }
+        meSetAvatar(d);
+      } catch (err) { alert("处理图片失败：" + err.message); }
+    };
+    img.onerror = function () { alert("这张图读不了，换一张"); };
+    img.src = String(r.result || "");
+  };
+  r.onerror = function () { alert("读文件失败"); };
+  r.readAsDataURL(f);
+  e.target.value = "";
+}
+
+function meStats() {
+  const list = loadSettlements();
+  let win = 0, loss = 0, wins = 0, losses = 0, best = 0, worst = 0;
+  list.forEach(function (r) {
+    const v = Number(r.pnl) || 0;
+    if (v >= 0) { win += v; wins++; } else { loss += v; losses++; }
+    if (v > best) best = v;
+    if (v < worst) worst = v;
+  });
+  return { list: list, win: win, loss: loss, wins: wins, losses: losses,
+           best: best, worst: worst, total: win + loss, n: list.length };
+}
+
+function renderMe() {
+  const box = $("out");
+  if (!box || TAB !== "me") return;
+  box.innerHTML = meHTML();
+}
+
+function meHTML() {
+  const s = meStats();
+  const eq = BASE_CAP + FLOAT_PNL;
+  const col = function (v) { return v >= 0 ? "#19c07a" : "#ff6b7d"; };
+  const sgn = function (v) { return (v >= 0 ? "+" : "") + v.toFixed(2); };
+
+  let h = '<h3>我的</h3>';
+
+  /* 名片 */
+  h += '<div class="bigcard">';
+  h += '<div class="mehead">' +
+    '<button class="me mebig" onclick="mePick()">' + meAvatarHTML() + '</button>' +
+    '<div style="flex:1;min-width:0">' +
+    '<input id="me-name" class="mename" value="' + escA(ME.name) + '" maxlength="12" ' +
+    'onchange="meSaveName(this.value)" placeholder="给自己起个名字">' +
+    '<div style="font-size:11px;color:#5f6779;margin-top:4px">点头像换图片 · 点名字改称呼</div>' +
+    '</div></div>';
+  h += '<input type="file" id="me-file" accept="image/*" style="display:none" ' +
+       'onchange="meUpload(event)">';
+  h += '<div class="levrow" style="margin-top:0">' +
+    ME_EMOJI.map(function (e) {
+      return '<button class="levbtn' + (ME.avatar === e ? " on" : "") + '" style="font-size:15px" ' +
+        'onclick="meSetAvatar(\'' + e + '\')">' + e + '</button>';
+    }).join('') + '</div>';
+  h += '</div>';
+
+  /* 账户 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>账户</span></div>';
+  h += '<div class="mebig2" style="color:' + col(FLOAT_PNL) + '">' + eq.toFixed(2) +
+       ' <span style="font-size:15px;color:#5f6779">U</span></div>';
+  h += '<div class="mestat" style="margin-top:12px">' +
+    '<div class="msrow"><span>本金</span><b>' + BASE_CAP.toFixed(2) + ' U</b>' +
+    '<span style="margin-left:auto;color:#5f6779;font-size:11.5px">不含浮动</span></div>' +
+    '<div class="msrow"><span>浮动盈亏</span><b style="color:' + col(FLOAT_PNL) + '">' +
+    sgn(FLOAT_PNL) + ' U</b></div>' +
+    '<div class="msrow"><span>已实现累计</span><b style="color:' + col(s.total) + '">' +
+    sgn(s.total) + ' U</b></div>' +
+    '</div></div>';
+
+  /* 历史盈亏 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>历史盈亏</span>' +
+    '<span style="font-size:11px;color:#5f6779">' + s.n + ' 笔</span></div>';
+  if (!s.n) {
+    h += '<div class="sc2empty">还没有平仓记录<br>' +
+      '<span style="font-size:11px">持仓里点「我已平仓」会自动记一笔</span></div>';
+  } else {
+    const wr = s.n ? (s.wins / s.n * 100) : 0;
+    h += '<div class="mestat">' +
+      '<div class="msrow"><span>总盈亏</span><b class="mebig2" style="font-size:23px;color:' +
+      col(s.total) + '">' + sgn(s.total) + ' U</b></div>' +
+      '<div class="msrow"><span>总盈利</span><b style="color:#19c07a">+' + s.win.toFixed(2) +
+      ' U</b><span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.wins +
+      ' 笔赚</span></div>' +
+      '<div class="msrow"><span>总亏损</span><b style="color:#ff6b7d">' + s.loss.toFixed(2) +
+      ' U</b><span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.losses +
+      ' 笔亏</span></div>' +
+      '<div class="msrow"><span>胜率</span><b>' + wr.toFixed(0) + '%</b>' +
+      '<span style="margin-left:auto;font-size:11.5px;color:#5f6779">' + s.wins + ' / ' +
+      s.n + '</span></div>' +
+      '<div class="msrow"><span>最好 / 最差</span><b style="color:#19c07a">+' + s.best.toFixed(2) +
+      '</b><b style="color:#ff6b7d;margin-left:8px">' + s.worst.toFixed(2) + '</b></div>' +
+      '</div>';
+  }
+  h += '</div>';
+
+  /* 历史仓位列表 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>历史仓位</span>' +
+    '<span style="font-size:11px;color:#5f6779">按时间倒序</span></div>';
+  if (s.list.length) {
+    s.list.slice().reverse().forEach(function (r, ri) {
+      const i = s.list.length - 1 - ri;
+      const v = Number(r.pnl) || 0;
+      h += '<div class="trade">' +
+        '<span class="ts">' + escA(r.sym) + '</span>' +
+        '<span class="tp">' + escA(r.dir || "") + '</span>' +
+        '<span class="tv" style="color:' + col(v) + '">' + (v >= 0 ? "+" : "") + v.toFixed(2) + 'U' +
+        (typeof r.pct === "number"
+          ? '<span style="font-size:11px;color:#5f6779"> ' + (r.pct >= 0 ? "+" : "") +
+            r.pct.toFixed(1) + '%</span>' : '') + '</span>' +
+        '<span class="td">' + escA(r.date || "") + '</span>' +
+        '<button class="tx" onclick="meDelTrade(' + i + ')">删</button>' +
+        '</div>';
+    });
+  } else {
+    h += '<div class="sc2empty">还没有记录</div>';
+  }
+  h += '<div class="acts" style="margin-top:12px">' +
+    '<a onclick="openTrade()">➕ 补录一单</a></div>';
+  h += '</div>';
+
+  return h;
+}
+
+function meDelTrade(i) {
+  const list = loadSettlements();
+  if (i < 0 || i >= list.length) return;
+  const r = list[i];
+  if (!confirm("删除这条记录？\n\n" + r.sym + "　" + (Number(r.pnl) >= 0 ? "+" : "") +
+               (Number(r.pnl) || 0).toFixed(2) + "U\n\n本金会反向调整")) return;
+  BASE_CAP -= Number(r.pnl) || 0;
+  try { localStorage.setItem("capital", String(BASE_CAP)); } catch (e) {}
+  list.splice(i, 1);
+  saveSettlements(list);
+  CFG.CAPITAL = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  refreshCapBar();
+  renderMe();
+}
+
+/* 补录 */
+function openTrade() {
+  const d = $("t-date");
+  if (d && !d.value) d.value = new Date().toISOString().slice(0, 10);
+  $("tmodal").classList.add("on");
+}
+function closeTrade() { const m = $("tmodal"); if (m) m.classList.remove("on"); }
+
+function saveTrade() {
+  const sym = String($("t-sym").value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const pnl = parseFloat($("t-pnl").value);
+  const date = $("t-date").value || new Date().toISOString().slice(0, 10);
+  if (!sym) { alert("填个币种"); return; }
+  if (!isFinite(pnl)) { alert("盈亏填个数字，亏了带负号"); return; }
+  addSettlement({ sym: sym, dir: "", pnl: pnl, date: date, manual: true });
+  closeTrade();
+  $("t-sym").value = "";
+  $("t-pnl").value = "";
+  renderMe();
+}
+
 /* ============ 三页 + 子页导航 ============ */
-let TAB = "main";     // main | alt | pos
+let TAB = "main";     // main | alt | arb | pos
 let SUB = "";         // 当前页的子页
 
 const SUBS = {
@@ -2673,16 +3108,21 @@ const SUBS = {
     { k: "watch", t: "观察" },
     { k: "agg",  t: "⚡激进" }
   ],
+  arb: [],
   pos: []
 };
 
 function isAltSym(sym) { return CFG.COINS.indexOf(sym) < 0; }
 
 function syncTabs() {
-  ["main", "alt", "pos"].forEach(function (t) {
+  ["main", "alt", "arb", "pos"].forEach(function (t) {
     const b = $("tab-" + t);
     if (b) b.classList.toggle("on", TAB === t);
   });
+  const mb = $("me-btn");
+  if (mb) mb.classList.toggle("on", TAB === "me");
+  const ico = $("me-ico");
+  if (ico) ico.innerHTML = meAvatarHTML();
   const list = SUBS[TAB] || [];
   const bar = $("subbar");
   if (!bar) return;
@@ -2704,6 +3144,7 @@ function setTAB(t) {
   syncTabs();
   try { localStorage.setItem("sub_" + t, SUB); } catch (e) {}
   if (window._last) render(window._last.rows, window._last.sigs);
+  else if (t === "arb") renderArb();
   else scanAll();
 }
 
@@ -2717,14 +3158,15 @@ function setSUB(s) {
 
 try {
   const saved = localStorage.getItem("tab");
-  if (saved === "main" || saved === "alt" || saved === "pos") TAB = saved;
+  if (saved === "main" || saved === "alt" || saved === "arb" || saved === "pos" ||
+      saved === "me") TAB = saved;
   const savedSub = localStorage.getItem("sub_" + TAB);
   if (savedSub) SUB = savedSub;
 } catch (e) {}
-/* 桌面图标长按快捷键：?t=main|alt|pos */
+/* 桌面图标长按快捷键：?t=main|alt|arb|pos|me */
 try {
   const _q = new URLSearchParams(location.search).get("t");
-  if (_q === "main" || _q === "alt" || _q === "pos") {
+  if (_q === "main" || _q === "alt" || _q === "arb" || _q === "pos" || _q === "me") {
     TAB = _q; SUB = "";
     history.replaceState(null, "", location.pathname);
   }
@@ -3153,7 +3595,7 @@ function exportPos(el) {
 /* ============ 数据备份 / 恢复（全部本地数据打包） ============ */
 const BK_VER = 1;
 const BK_EXTRA = ["capital", "riskpct", "levfixed", "risk", "aggmargin",
-                  "welcomeDone", "tab", "settlements", "altlev"];
+                  "welcomeDone", "tab", "settlements", "altlev", "me_name", "me_avatar"];
 
 function bkManaged(k) {
   return k.indexOf("pos_") === 0 || k.indexOf("sub_") === 0 || BK_EXTRA.indexOf(k) >= 0;
@@ -3412,6 +3854,7 @@ function startApp() {
   _appStarted = true;
   $("gmodal").style.display = "none";
 
+  loadMe();
   syncTabs();
   loadCap();
   loadPriceCache();
@@ -3440,7 +3883,12 @@ function startApp() {
   } catch (e) {}
   // 持仓页只需要价格，不拉 K 线
   quickPnl(false);
-  if (!shown && TAB !== "pos") setTimeout(scanAll, 200);
+  // 资金费率提前拉一次，持仓页才算得出每天收付
+  loadFund().then(function () {
+    if (TAB === "pos" && window._last) render(window._last.rows, window._last.sigs);
+  });
+  if (!shown && TAB === "arb") { renderArb(); setTimeout(scanAll, 200); }
+  else if (!shown && TAB !== "pos") setTimeout(scanAll, 200);
   else if (!shown) btnDefault();
 }
 
