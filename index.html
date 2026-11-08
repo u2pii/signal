@@ -3103,50 +3103,28 @@ function capNative(plugin, method, opts) {
   return null;
 }
 
+/* 跳转：不让原生插件参与，直接让 WebView 把自定义 scheme 交给系统 */
 function openEx(sym) {
   const url = exLink(sym);
-  const C = window.Capacitor;
-  const isNative = !!(C && C.isNative);
-  const P = (C && C.Plugins) || {};
+  const sc = EX_SCHEME[EXCH] || "";
 
-  const info = function () {
-    let headers = [];
+  const goWeb = function () {
     try {
-      headers = (C.PluginHeaders || []).map(function (h) { return h.name; });
+      const w = window.open(url, "_blank");
+      if (!w) location.href = url;
     } catch (e) {}
-    return "Plugins: " + Object.keys(P).join(",") +
-           "\nHeaders: " + headers.join(",");
   };
 
-  /* 试私有 scheme，成不成看对方 */
-  const tryScheme = function () {
-    if (P.AppLauncher && typeof P.AppLauncher.openUrl === "function") {
-      const sc = EX_SCHEME[EXCH];
-      if (sc) {
-        try {
-          P.AppLauncher.openUrl({ url: sc }).catch(function () { openExWeb(url, P); });
-          return true;
-        } catch (e) {}
-      }
-    }
-    return false;
-  };
-
-  if (P.AppLaunch && typeof P.AppLaunch.openApp === "function") {
-    P.AppLaunch.openApp({ pkgs: EX_PKGS[EXCH] || [] }).then(function (r) {
-      if (r && r.ok) return;
-      if (isNative) alert("包名没匹配到\n\n包名：" + JSON.stringify(EX_PKGS[EXCH] || []) +
-                          "\n返回：" + JSON.stringify(r) + "\n" + info());
-      if (!tryScheme()) openExWeb(url, P);
-    }).catch(function (e) {
-      if (isNative) alert("原生调用失败\n\n" + (e && e.message ? e.message : String(e)) + "\n\n" + info());
-      if (!tryScheme()) openExWeb(url, P);
-    });
+  if (sc) {
+    try { window.open(sc, "_blank"); } catch (e) {}
+    /* 1.3 秒内如果页面还在前台，说明没跳走，再开网页兜底 */
+    setTimeout(function () {
+      try { if (!document.hidden) goWeb(); } catch (e) { goWeb(); }
+    }, 1300);
     return false;
   }
 
-  if (isNative) alert("没有 AppLaunch\n\n" + info());
-  if (!tryScheme()) openExWeb(url, P);
+  goWeb();
   return false;
 }
 
