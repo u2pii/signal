@@ -74,6 +74,7 @@ jobs:
         working-directory: app
         run: |
           set -e
+          python3 patch_manifest.py
           R=android/app/src/main/res
           rm -rf "$R"/mipmap-anydpi-v26
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
