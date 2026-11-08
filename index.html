@@ -5,15 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0a0c10">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="信号">
+<meta name="application-name" content="信号">
 <meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>今日信号</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{overflow-x:hidden}
 body{margin:0 auto;background:#0a0c10;color:#d2d8e6;font:16px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-padding:18px 16px 50px;max-width:430px;min-height:100vh;-webkit-text-size-adjust:100%}
+padding:calc(18px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(50px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px));
+max-width:430px;min-height:100vh;-webkit-text-size-adjust:100%}
 h1{font-size:20px;margin:0 0 4px;color:#fff;font-weight:700}
 .s{font-size:12.5px;color:#5f6779;margin-bottom:20px}
 .btn{width:100%;padding:22px;border:0;border-radius:18px;font-size:19px;font-weight:700;color:#fff;
@@ -2377,6 +2383,14 @@ try {
   const savedSub = localStorage.getItem("sub_" + TAB);
   if (savedSub) SUB = savedSub;
 } catch (e) {}
+/* 桌面图标长按快捷键：?t=main|alt|pos */
+try {
+  const _q = new URLSearchParams(location.search).get("t");
+  if (_q === "main" || _q === "alt" || _q === "pos") {
+    TAB = _q; SUB = "";
+    history.replaceState(null, "", location.pathname);
+  }
+} catch (e) {}
 // 支持 ?tab=alt&sub=chg 直接打开
 try {
   const qs = new URLSearchParams(location.search);
@@ -2966,6 +2980,14 @@ window.render = function (rows, sigs) {
   try { localStorage.setItem("last_result", JSON.stringify({ rows, sigs, t: Date.now() })); } catch (e) {}
   _origRender(rows, sigs);
 };
+</script>
+<script>
+/* PWA：注册离线缓存。只在 https 下注册（本地文件打开会失败，直接跳过） */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
 </script>
 </body>
 </html>
