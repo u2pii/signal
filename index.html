@@ -3068,14 +3068,7 @@ function _isNativeApp() {
 
 function exBtn(sym) {
   const s = String(sym || "").toUpperCase();
-  let h = '<div class="exto">' +
-    '<a onclick="copySym(\'' + s + '\',this)">复制 ' + s + '</a>';
-  /* 只有在真浏览器里才给跳转按钮：App 里的系统 WebView 会把它拐去警告页 */
-  if (!_isNativeApp()) {
-    h += '<a href="' + exLink(s) + '" onclick="return openEx(\'' + s + '\')">去 ' +
-         exName() + ' ↗</a>';
-  }
-  return h + '</div>';
+  return '<div class="exto"><a onclick="copySym(\'' + s + '\',this)">复制 ' + s + '</a></div>';
 }
 
 function copySym(sym, el) {
