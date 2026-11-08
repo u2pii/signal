@@ -3111,6 +3111,13 @@ function openEx(sym) {
   const C = window.Capacitor;
   const isNative = !!(C && C.isNative);
 
+  if (!isNative) {
+    alert("诊断（这次只是查问题）\n\n" +
+          "Capacitor: " + (typeof C) + "\n" +
+          "isNative: " + (C ? C.isNative : "无") + "\n" +
+          "UA: " + String(navigator.userAgent).slice(0, 70));
+  }
+
   const p = capNative("AppLaunch", "openApp", { pkgs: EX_PKGS[EXCH] || [] });
   if (p && typeof p.then === "function") {
     p.then(function (r) {
