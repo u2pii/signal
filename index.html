@@ -62,7 +62,7 @@ font-size:12.5px;line-height:1.5;margin-top:10px}
 text-decoration:none;background:var(--surf2);color:var(--acc);border:1px solid var(--bd2);cursor:pointer}
 .acts a.p{background:var(--up);color:#04140d;border:0}
 .acts a:active{opacity:.8}
-.exto{display:flex;justify-content:flex-end;margin-top:11px}
+.exto{display:flex;justify-content:flex-end;gap:8px;margin-top:11px}
 .exto a{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;
 border:1px solid var(--bd2);background:var(--surf2);color:var(--mid2);
 font-size:12px;font-weight:600;text-decoration:none;letter-spacing:.2px;cursor:pointer}
@@ -3063,8 +3063,25 @@ function exLink(sym) {
 
 function exBtn(sym) {
   const s = String(sym || "").toUpperCase();
-  return '<div class="exto"><a href="' + exLink(s) +
-    '" onclick="return openEx(\'' + s + '\')">去 ' + exName() + ' ↗</a></div>';
+  return '<div class="exto">' +
+    '<a onclick="copySym(\'' + s + '\',this)">复制币种</a>' +
+    '<a href="' + exLink(s) + '" onclick="return openEx(\'' + s + '\')">去 ' + exName() + ' ↗</a>' +
+    '</div>';
+}
+
+function copySym(sym, el) {
+  const t = String(sym || "").toUpperCase() + "USDT";
+  const done = function () {
+    if (!el) return;
+    const o = el.textContent;
+    el.textContent = "已复制 " + t;
+    setTimeout(function () { el.textContent = o; }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(function () { fallbackCopy(t, done); });
+  } else {
+    fallbackCopy(t, done);
+  }
 }
 
 /* 各交易所 App 的包名（按顺序试）+ 私有 scheme 兜底 */
