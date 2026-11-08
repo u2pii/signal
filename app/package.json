@@ -1,0 +1,13 @@
+{
+  "name": "signal-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "今日信号 · 安卓外壳",
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "appId": "io.github.u2pii.signal",
+  "appName": "信号",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0a0c10",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "url": "https://u2pii.github.io/signal/",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#0a0c10",
+      "showSpinner": false
+    }
+  }
+}

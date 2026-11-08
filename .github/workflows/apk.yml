@@ -1,0 +1,130 @@
+name: apk
+
+# 在云端把网页包成安卓安装包。
+# 网页改了不用重新打包——apk 打开时就是加载线上的
+# https://u2pii.github.io/signal/ ，所以只有改壳本身才需要重跑。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-build
+  cancel-in-progress: false
+
+env:
+  KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 准备签名证书
+        run: |
+          set -e
+          mkdir -p "$HOME/.android"
+          KS="$HOME/.android/debug.keystore"
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+            echo "证书：从 secret 恢复"
+          else
+            rm -f "$KS"
+            keytool -genkeypair -keystore "$KS" -storepass android \
+              -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10950 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            echo "::warning::新生成了一张证书。下载 debug-keystore 工件后设成 DEBUG_KEYSTORE_B64，否则下次更新装不上。"
+          fi
+          keytool -list -keystore "$KS" -storepass android | tail -4
+
+      - name: 保存证书（仅首次需要）
+        if: env.KEYSTORE_B64 == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-keystore
+          path: ~/.android/debug.keystore
+
+      - name: 安装依赖
+        working-directory: app
+        run: npm install --no-audit --no-fund
+
+      - name: 生成安卓工程
+        working-directory: app
+        run: |
+          set -e
+          npx cap add android
+          npx cap sync android
+
+      - name: 换掉默认图标
+        working-directory: app
+        run: |
+          set -e
+          R=android/app/src/main/res
+          rm -rf "$R"/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp "assets/ic_launcher-$d.png" "$R/mipmap-$d/ic_launcher.png"
+            cp "assets/ic_launcher-$d.png" "$R/mipmap-$d/ic_launcher_round.png"
+          done
+          echo "图标已替换"
+
+      - name: 深色状态栏/启动背景
+        working-directory: app
+        run: |
+          set -e
+          F=android/app/src/main/res/values/styles.xml
+          python3 - "$F" <<'PY'
+          import io, sys
+          p = sys.argv[1]
+          s = io.open(p, encoding="utf-8").read()
+          add = ('<item name="android:windowBackground">#0a0c10</item>'
+                 '<item name="android:statusBarColor">#0a0c10</item>'
+                 '<item name="android:navigationBarColor">#0a0c10</item>')
+          if "android:windowBackground" not in s:
+              s = s.replace("</style>", add + "</style>", 1)
+          io.open(p, "w", encoding="utf-8", newline="\n").write(s)
+          print("styles.xml ok")
+          PY
+
+      - name: 打包
+        working-directory: app/android
+        run: |
+          set -e
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --console=plain
+
+      - name: 收好 apk
+        run: |
+          set -e
+          mkdir -p out
+          cp app/android/app/build/outputs/apk/debug/app-debug.apk out/signal.apk
+          ls -lh out/
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs out/signal.apk | head -6 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signal-apk
+          path: out/signal.apk
+
+      - name: 挂到 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          gh release create apk --title "安卓安装包" \
+            --notes "点 signal.apk 下载，装的时候允许未知来源。" 2>/dev/null || true
+          gh release upload apk out/signal.apk --clobber
+          echo "下载地址 https://github.com/${{ github.repository }}/releases/download/apk/signal.apk"
