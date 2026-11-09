@@ -3974,38 +3974,7 @@ function bkImport() {
   }
 }
 
-/* 记录回踩做多的仓位 */
-function markPull(sym, price, stop, qty, usd) {
-  if (loadPos(sym)) { alert(sym + " 已经有持仓记录了，可在持仓页修改"); return; }
-  if (!checkMarginCap(usd, sym + " 多单")) return;
-  if (!confirm("确认已在币安开好 " + sym + " 的多单？\n\n" +
-               "入场 " + price + "\n止损 " + stop + "（-10%）\n" +
-               "仓位 " + usd.toFixed(2) + "U\n数量 " + qty)) return;
-  savePos(sym, {
-    dir: "L", entry: price, sl: parseFloat(stop), ext: price,
-    qty: parseFloat(qty), lev: 1, margin: usd, marginMode: "isolated",
-    date: new Date().toISOString().slice(0, 10),
-    alt: true,
-  });
-  if (window._last) render(window._last.rows, window._last.sigs);
-  scanAll();
-}
-
-/* 复制回踩做多参数 */
-function copyPullback(sym, price, stop, qty, usd, el) {
-  const txt = sym + " 做多（回踩回升）\n" +
-              "入场 " + price + "\n" +
-              "止损 " + stop + "（-10%）\n" +
-              "数量 " + qty + "\n" +
-              "仓位 " + usd.toFixed(2) + "U\n" +
-              "计划持有 20 天，不设止盈";
-  const done = () => {
-    if (el) { const o = el.textContent; el.textContent = "✅ 已复制"; setTimeout(() => el.textContent = o, 1600); }
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
-  } else { fallbackCopy(txt, done); }
-}
+/* 回踩做多已下线（t=1.64 不显著），markPull / copyPullback 一并删除 */
 
 /* 复制做空参数 */
 function copyShort(sym, price, usd, qty, el, lev) {
