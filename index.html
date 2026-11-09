@@ -1804,7 +1804,7 @@ function aggCardSym(sym, price, badgeColor, badgeTxt, lines, acts) {
 
 /* ---- 山寨 · 激进子页 ---- */
 function altAggHTML() {
-  const pbs = ALT.pullback || [], shorts = ALT.short || [];
+  const shorts = ALT.short || [];
   let h = '<h3>顶口 · 激进 · ' + (ALT.updated || "") + '</h3>';
 
   h += '<div class="bigcard" style="border-color:var(--dnbd2)">';
@@ -1831,24 +1831,9 @@ function altAggHTML() {
   h += '<div class="sectrule" style="border-color:var(--dnbd2);background:var(--dnbg3);color:var(--dn4)">' +
        '<b>这是你要的模式：10% 波动 = 本金翻倍。</b><br>' +
        '代价：反向 10% 就归零，模拟 20000 次的存活率如下——<br>' +
-       '<span style="color:var(--dn)">做空 10x 满仓：一年爆仓 95%，翻倍只剩 4.7%</span><br>' +
-       '<span style="color:var(--amber2)">回踩做多 10x 满仓：一年爆仓 100%，翻倍 0%</span><br>' +
-       '<span style="color:var(--up2)">唯一能活的：回踩做多 + 单笔风险 10~15% + 3~5x，翻倍 22~27%，爆仓 0%</span>' +
+       '<span style="color:var(--dn)">做空 10x 满仓：一年爆仓 95%，翻倍只剩 4.7%</span>' +
        '</div>';
 
-  if (pbs.length) {
-    h += '<div class="secttl" style="color:var(--amber2)">🔄 回踩做多（相对最耐活）</div>';
-    pbs.slice(0, 4).forEach(a => {
-      const s = aggSize(a.price);
-      const qs = s.qty >= 1 ? s.qty.toFixed(2) : s.qty.toFixed(6);
-      h += aggCardSym(a.sym, a.price, "var(--gold)", ["暴涨 +" + a.pump_pct + "%", "var(--amber2)"],
-        '<div class="aline">已回落 <b style="color:var(--amber2)">-' + a.pullback + '%</b>' +
-        '　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
-        '<div class="aline">建议止损 <b style="color:var(--amber)">' + f(a.stop) + '</b>（-10%）</div>',
-        '<a class="p" style="background:var(--gold);color:#1a1408" ' +
-        'onclick="copyAgg(\'' + a.sym + '\',\'L\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + s.margin + ',' + s.notional + ',this)">📋 复制满仓参数</a>');
-    });
-  }
   if (shorts.length) {
     h += '<div class="secttl" style="color:var(--dn4);margin-top:16px">🎯 暴涨做空（爆仓率高，自行判断）</div>';
     shorts.slice(0, 4).forEach(a => {
@@ -1861,7 +1846,7 @@ function altAggHTML() {
         'onclick="copyAgg(\'' + a.sym + '\',\'S\',' + a.price + ',' + (a.price * 2) + ',\'' + qs + '\',' + s.margin + ',' + s.notional + ',this)">📋 复制满仓参数</a>');
     });
   }
-  if (!pbs.length && !shorts.length) {
+  if (!shorts.length) {
     h += '<div class="sc2empty">今天没有激进标的</div>';
   }
   h += '</div>';
@@ -2367,7 +2352,7 @@ function altChgHTML() {
 
 /* ---- 山寨 · 信号子页（做多 + 做空 归在一个大卡片里）---- */
 function altSigHTML() {
-  const pbs = ALT.pullback || [], shorts = ALT.short || [];
+  const shorts = ALT.short || [];
   const ageMin = ALT_AT ? Math.round((Date.now() - ALT_AT) / 60000) : -1;
   const freshTxt = ageMin < 0 ? "" :
     (ageMin <= 5 ? '<span style="color:var(--up)">刚刚同步</span>' :
@@ -2377,43 +2362,13 @@ function altSigHTML() {
     '　' + freshTxt + '</h3>';
   h += '<div class="acts" style="margin-bottom:10px">' +
     '<a onclick="forceRefreshAlts(this)">🔄 立即刷新数据</a></div>';
-  h += '<div class="tideintro">🎯 <b>顶口</b>：专门做山寨币的「顶」和「口」。' +
-       '暴涨 30%+ → 在顶部做空（赌它回落）；回落 15%+ 后止跌回升 → 在口上做多（赌它再涨）。' +
-       '两条腿都持 20 天。</div>';
+  h += '<div class="tideintro">🎯 <b>顶口</b>：专做山寨币的「顶」。' +
+       '单日暴涨 30%+ → 在顶部做空，赌它回落，持 20 天。</div>';
   h += '<div class="bigcard">';
   h += '<div class="bchead"><span>🎯 今日信号</span>' +
-       '<span style="font-size:11px;color:var(--dim)">做多 ' + pbs.length +
-       ' · 做空 ' + shorts.length + '</span></div>';
+       '<span style="font-size:11px;color:var(--dim)">做空 ' + shorts.length + ' 个</span></div>';
 
-  /* —— 回踩做多 —— */
-  h += '<div class="secttl" style="color:var(--amber2)">🔄 回踩回升（做多）</div>';
-  h += '<div class="sectrule" style="border-color:var(--wabd2);background:#161106">' +
-       '暴涨后回落 + 昨天收涨 = 洗盘结束。止损 -10%，持 20 天，不止盈。<br>' +
-       '<span style="color:var(--amber2)">⚠️ 144 笔样本 t=1.64，未达显著，胜率仅 16~29%</span></div>';
-  if (pbs.length) {
-    pbs.forEach(a => {
-      const posUsd = Math.max(CFG.CAPITAL * CFG.RISK, MIN_NOTIONAL);
-      const qty = posUsd / a.price;
-      const qs = qty >= 1 ? qty.toFixed(2) : qty.toFixed(6);
-      h += '<div class="scard" style="border-left-color:var(--gold)">' +
-        '<div class="atop"><span class="anm">' + a.sym + '</span>' +
-        '<span class="sbadge" style="background:var(--wabd2);color:var(--amber2)">暴涨 +' + a.pump_pct + '%</span></div>' +
-        '<div class="aline">现价 <b class="good">' + f(a.price) + '</b>' +
-        '　24h <b class="' + (a.chg24 >= 0 ? "good" : "bad") + '">' +
-        (a.chg24 >= 0 ? "+" : "") + a.chg24 + '%</b></div>' +
-        '<div class="aline">已回落 <b style="color:var(--amber2)">-' + a.pullback + '%</b>' +
-        '（' + a.days_since + ' 天前暴涨）　昨收 <b class="good">+' + a.last_chg + '%</b></div>' +
-        '<div class="aline">止损 <b style="color:var(--amber)">' + f(a.stop) + '</b>（-10%）' +
-        '　仓位 ' + posUsd.toFixed(2) + 'U　数量 ' + qs + '</div>' +
-        '<div class="acts">' +
-        '<a class="p" style="background:var(--gold);color:#1a1408" ' +
-        'onclick="copyPullback(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ',this)">📋 复制做多参数</a>' +
-        '<a onclick="markPull(\'' + a.sym + '\',' + a.price + ',' + a.stop + ',\'' + qs + '\',' + posUsd + ')">我已开多</a>' +
-        '</div></div>';
-    });
-  } else {
-    h += '<div class="sc2empty">今天没有符合条件的</div>';
-  }
+  /* 回踩做多已删除：144 笔样本 t=1.64，统计上不成立，留着只会误导 */
 
   /* —— 做空 —— */
   h += '<div class="secttl" style="color:var(--dn4);margin-top:16px">🎯 暴涨做空</div>';
