@@ -623,6 +623,13 @@ html[data-t="light"] .mgbar.over{background:#fff7f8;border-color:#f3ccd3}
   </div>
 </div>
 
+<!-- 历史单详情 -->
+<div class="modal" id="tdmodal">
+  <div class="mbox" style="max-width:340px">
+    <div id="td-body"></div>
+  </div>
+</div>
+
 <!-- 补录已平仓 -->
 <div class="modal" id="tmodal"><div class="mbox" style="max-width:340px">
     <div class="mhead">补录一单已平仓</div>
@@ -649,8 +656,8 @@ html[data-t="light"] .mgbar.over{background:#fff7f8;border-color:#f3ccd3}
       <input id="mm-usd" type="number" step="any" inputmode="decimal" oninput="onMarginEdit()">
     </div>
     <div class="mrow">
-      <label>或者直接改杠杆（保证金自动算）</label>
-      <input id="mm-lev" type="number" step="1" inputmode="numeric" placeholder="如 2、3、5，留空则按上面金额"
+      <label>杠杆　（保证金 × 杠杆 = 名义，名义是算出来的）</label>
+      <input id="mm-lev" type="number" step="0.1" inputmode="decimal" placeholder="如 1、2、3，留空则沿用当前"
              oninput="onLevInput()">
     </div>
     <div class="mrow">
@@ -1252,14 +1259,18 @@ function sizePosition(s) {
 function setPosLev(sym, lev) {
   const p = loadPos(sym);
   if (!p) return;
-  const notional = p.qty * p.entry;
-  const mg = notional / lev;
+  const mg = p.margin || (p.qty * p.entry / (p.lev || 1));
+  const oldNotional = p.qty * p.entry;
+  const notional = mg * lev;                // 保证金不变，名义 = 保证金 × 杠杆
   p.lev = lev;
   p.margin = mg;
+  p.qty = notional / p.entry;
   savePos(sym, p);
   if (window._last) render(window._last.rows, window._last.sigs);
   const liq = p.dir === "L" ? p.entry * (1 - 1 / lev) : p.entry * (1 + 1 / lev);
-  alert("杠杆已改为 " + lev + "x\n\n" +
+  alert("杠杆 → " + lev + "x（保证金不变）\n\n" +
+        "名义 " + oldNotional.toFixed(2) + "U → " + notional.toFixed(2) + "U\n" +
+        "数量 → " + (p.qty >= 1 ? p.qty.toFixed(4) : p.qty.toFixed(6)) + "\n" +
         "保证金 " + mg.toFixed(2) + "U\n" +
         "强平价约 " + (liq >= 1 ? liq.toFixed(2) : liq.toFixed(6)));
 }
@@ -1441,8 +1452,8 @@ function buildHoldCards(list, title) {
             '<div><span>新止损</span>' + slTxt + '</div>') +
         '<div><span>保证金</span><b onclick="openMargin(\'' + r.sym + '\')">' +
           (p.margin ? p.margin.toFixed(2) + 'U' : '—') + ' ⚙️</b></div>' +
-        '<div><span>名义</span><b onclick="editPosNotional(\'' + r.sym + '\')" style="color:var(--acc)">' +
-          (p.qty * p.entry).toFixed(2) + 'U ✏️</b></div>' +
+        '<div><span>名义</span><b style="color:var(--acc)">' +
+          (p.qty * p.entry).toFixed(2) + 'U</b></div>' +
         '<div><span>价格变动</span><b>' + (info.pnlPct >= 0 ? "+" : "") + info.pnlPct.toFixed(2) + '%</b></div>' +
         '<div><span>杠杆</span><b>' + (p.margin && p.qty ? (p.qty * p.entry / p.margin).toFixed(2) + 'x' : '—') + '</b></div>' +
         '</div>' +
@@ -2662,6 +2673,8 @@ function npSave() {
   const r = npCalc();
   if (!r) { alert("填入保证金或当前盈亏"); return; }
   const notional = r.qty * e;
+  /* 手动记录里，非主流币一律按顶口口径卡上限 */
+  if (isAltSym(sym) && !altCapBlock(notional, e)) return;
   savePos(sym, {
     dir: _npDir, entry: e, sl: _npDir === "S" ? e * 2 : e * 0.5, ext: e,
     qty: r.qty, lev: isFinite(m) && m > 0 ? notional / m : 1,
@@ -3278,7 +3291,7 @@ function meHTML() {
     s.list.slice().reverse().forEach(function (r, ri) {
       const i = s.list.length - 1 - ri;
       const v = Number(r.pnl) || 0;
-      h += '<div class="trade">' +
+      h += '<div class="trade" onclick="openTradeDetail(' + i + ')">' +
         '<span class="ts">' + escA(r.sym) + '</span>' +
         '<span class="tp">' + escA(r.dir || "") + '</span>' +
         '<span class="tv" style="color:' + col(v) + '">' + (v >= 0 ? "+" : "") + v.toFixed(2) + 'U' +
@@ -3286,7 +3299,7 @@ function meHTML() {
           ? '<span style="font-size:11px;color:var(--dim)"> ' + (r.pct >= 0 ? "+" : "") +
             r.pct.toFixed(1) + '%</span>' : '') + '</span>' +
         '<span class="td">' + escA(r.date || "") + '</span>' +
-        '<button class="tx" onclick="meDelTrade(' + i + ')">删</button>' +
+        '<button class="tx" onclick="event.stopPropagation();meDelTrade(' + i + ')">删</button>' +
         '</div>';
     });
   } else {
@@ -3299,8 +3312,52 @@ function meHTML() {
   return h;
 }
 
-function meDelTrade(i) {
-  const list = loadSettlements();
+/* 历史单详情 */
+function openTradeDetail(i) {
+  const r = loadSettlements()[i];
+  if (!r) return;
+  const v = Number(r.pnl) || 0;
+  const col = v >= 0 ? "var(--up)" : "var(--dn)";
+  const sgn = function (x) { return (x >= 0 ? "+" : "") + Number(x).toFixed(2); };
+
+  let h = '<div class="mhead" style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px">' +
+    escA(r.sym) + '<span style="font-size:12px;color:var(--dim);font-weight:400">' +
+    escA(r.dir || "") + (r.manual ? " · 手动补录" : " · 平仓结算") + '</span></div>';
+
+  h += '<div style="font-size:32px;font-weight:800;color:' + col + ';line-height:1.1">' +
+    sgn(v) + '<span style="font-size:15px;color:var(--dim)"> U</span></div>';
+  if (typeof r.pct === "number") {
+    h += '<div style="font-size:13.5px;color:' + col + ';margin-top:2px">' +
+      sgn(r.pct) + '% 对保证金</div>';
+  }
+
+  h += '<div class="mestat" style="margin-top:16px">';
+  function row(k, val) {
+    return '<div class="msrow"><span>' + k + '</span><b>' + val + '</b></div>';
+  }
+  h += row("平仓日期", escA(r.date || "—"));
+  h += row("入场价", r.entry != null ? f(r.entry) : "—");
+  h += row("出场价", r.exit != null ? f(r.exit) : "—");
+  if (r.mg != null) h += row("保证金", Number(r.mg).toFixed(2) + " U");
+  if (r.entry && r.exit) {
+    h += row("价格变动", ((r.exit / r.entry - 1) * 100 * (r.dir === "空" ? -1 : 1)).toFixed(2) + "%");
+  }
+  if (r.mg && r.entry && r.lev) h += row("杠杆", Number(r.lev).toFixed(2) + "x");
+  h += '</div>';
+
+  if (r.entry == null || r.mg == null) {
+    h += '<div class="mmsg" style="margin-top:12px">这单是旧版本记的，只有盈亏，没有开仓价和保证金。</div>';
+  }
+
+  h += '<div class="macts" style="margin-top:16px">' +
+    '<button onclick="closeTradeDetail()">关闭</button></div>';
+  $("td-body").innerHTML = h;
+  $("tdmodal").classList.add("on");
+}
+
+function closeTradeDetail() { $("tdmodal").classList.remove("on"); }
+
+function meDelTrade(i) {  const list = loadSettlements();
   if (i < 0 || i >= list.length) return;
   const r = list[i];
   if (!confirm("删除这条记录？\n\n" + r.sym + "　" + (Number(r.pnl) >= 0 ? "+" : "") +
@@ -3591,20 +3648,25 @@ function setMode(m) {
 function onMarginEdit() {
   if (!_mmSym) return;
   const p = loadPos(_mmSym);
+  if (!p) return;
   const usd = parseFloat($("mm-usd").value);
+  const lvIn = parseFloat($("mm-lev").value);
   const msg = $("mm-msg");
   msg.classList.remove("bad");
   if (!isFinite(usd) || usd <= 0) { msg.textContent = "填入保证金金额"; return; }
-  const notional = p.qty * p.entry;
-  const lev = notional / usd;
-  msg.innerHTML = "名义 <b>" + notional.toFixed(2) + "U</b>　→　杠杆 <b style='color:var(--acc)'>" +
-    lev.toFixed(2) + "x</b>";
-  if (lev < 0.99) {
-    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 保证金比名义还大，说明记录的数量偏小，盈亏会算少</span>";
-  }
+
+  /* 口径：保证金 × 杠杆 = 名义，名义是结果，不是输入 */
+  const lev = (isFinite(lvIn) && lvIn > 0) ? lvIn : (p.lev || 1);
+  const notional = usd * lev;
+  const qty = notional / p.entry;
+
+  msg.innerHTML = "保证金 <b>" + usd.toFixed(2) + "U</b>　×　杠杆 <b style='color:var(--acc)'>" +
+    lev.toFixed(2) + "x</b>　→　名义 <b>" + notional.toFixed(2) + "U</b>" +
+    "<br>数量 <b>" + (qty >= 1 ? qty.toFixed(4) : qty.toFixed(6)) + "</b>（开仓价 " + p.entry + "）";
+
   if (_mmMode === "cross") {
-    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 全仓模式下，价格暴涨会吃掉整个账户余额，" +
-      "不再是「最多亏这笔」</span>";
+    msg.innerHTML += "<br><span style='color:var(--dn3)'>⚠️ 全仓：价格暴涨会吃掉整个账户余额，" +
+      "不是「最多亏这笔」</span>";
     msg.classList.add("bad");
   } else {
     msg.innerHTML += "<br><span style='color:var(--up2)'>逐仓：最多亏光这笔保证金</span>";
@@ -3612,13 +3674,7 @@ function onMarginEdit() {
 }
 
 function onLevInput() {
-  const lv = parseFloat($("mm-lev").value);
-  if (!isFinite(lv) || lv <= 0) { onMarginEdit(); return; }
-  const p = loadPos(_mmSym);
-  if (!p) return;
-  const notional = p.qty * p.entry;
-  const mg = notional / lv;
-  $("mm-usd").value = mg.toFixed(2);
+  /* 杠杆变了不动保证金，名义跟着变 */
   onMarginEdit();
 }
 
@@ -3627,11 +3683,16 @@ function mmClose() { $("mmodal").classList.remove("on"); _mmSym = null; }
 function mmSave() {
   if (!_mmSym) return;
   const usd = parseFloat($("mm-usd").value);
-  if (!isFinite(usd) || usd <= 0) { alert("金额有误"); return; }
+  const lvIn = parseFloat($("mm-lev").value);
+  if (!isFinite(usd) || usd <= 0) { alert("保证金有误"); return; }
   const p = loadPos(_mmSym);
+  if (!p) return;
+  const lev = (isFinite(lvIn) && lvIn > 0) ? lvIn : (p.lev || 1);
+  const notional = usd * lev;               // 名义 = 保证金 × 杠杆
   p.margin = usd;
+  p.lev = lev;
+  p.qty = notional / p.entry;
   p.marginMode = _mmMode;
-  p.lev = p.qty * p.entry / usd;
   savePos(_mmSym, p);
   mmClose();
   if (window._last) render(window._last.rows, window._last.sigs);
@@ -3781,9 +3842,29 @@ function modalSave() {
 }
 
 /* 山寨币做空：直接记录持仓 */
+/* ============ 仓位硬上限（只卡顶口这类「不设止损」的仓） ============ */
+const ALT_CAP_PCT = 0.15;
+
+function altCapBlock(notional, price) {
+  const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  /* 下限兜到交易所最小下单额，账户很小的时候不至于一笔都开不了 */
+  const cap = Math.max(eq * ALT_CAP_PCT, MIN_NOTIONAL);
+  if (notional <= cap + 0.01) return true;
+  const maxQty = price > 0 ? cap / price : 0;
+  alert("⛔ 这笔记不了（超过单笔上限）\n\n" +
+        "账户 " + eq.toFixed(2) + "U × 15% = 上限 " + cap.toFixed(2) + "U\n" +
+        "你要开的名义 " + notional.toFixed(2) + "U\n\n" +
+        "顶口不设止损，仓位必须小到「亏光也不影响下一笔」。\n" +
+        (maxQty > 0
+          ? "这个价最多开 " + (maxQty >= 1 ? maxQty.toFixed(4) : maxQty.toFixed(6)) + " 个"
+          : ""));
+  return false;
+}
+
 function markAlt(sym, price, usd, qty, lev) {
   lev = (isFinite(lev) && lev > 0 && lev <= 125) ? lev : 1;
   if (loadPos(sym)) { alert(sym + " 已经有持仓记录了"); return; }
+  if (!altCapBlock(usd, price)) return;
   const mg = usd / lev;
   if (!checkMarginCap(mg, sym + " 空单")) return;
   if (lev > 1 && !confirm("⚠️ 这单用 " + lev + "x\n\n" +
