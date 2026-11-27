@@ -356,6 +356,7 @@ html[data-t="light"] .mgbar.over{background:#fff7f8;border-color:#f3ccd3}
   <button id="tab-main" class="on" onclick="setTAB('main')">主流</button>
   <button id="tab-alt" onclick="setTAB('alt')">顶口</button>
   <button id="tab-arb" onclick="setTAB('arb')">套利</button>
+  <button id="tab-us" onclick="setTAB('us')">美股</button>
   <button id="tab-pos" onclick="setTAB('pos')">持仓</button>
 </div>
 <div class="subbar" id="subbar"></div>
@@ -1585,6 +1586,14 @@ function render(rows, sigs) {
     syncTabs();
     return;
   }
+  // ===== 美股页 =====
+  if (TAB === "us") {
+    $("out").innerHTML = "";
+    $("alts").innerHTML = "";
+    renderUs();
+    syncTabs();
+    return;
+  }
   // ===== 套利页：资金费率 =====
   if (TAB === "arb") {
     $("out").innerHTML = "";
@@ -2175,6 +2184,76 @@ function parseTradeCSV(text) {
   });
   if (!out.length) throw new Error("所有币的净持仓都是 0（看起来都已经平仓了）");
   return { mode: "trade", rows: out, lines: body.length };
+}
+
+/* ============ 美股 ============ */
+
+let US = null, US_AT = 0, US_LOADING = false;
+
+async function loadUs(force) {
+  const now = Date.now();
+  if (!force && US && now - US_AT < 600000) return US;
+  try {
+    const r = await fetch("stocks.json?t=" + now);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d || !d.items) throw new Error("格式不对");
+    US = d; US_AT = now;
+    return US;
+  } catch (e) {
+    return US;
+  }
+}
+
+async function renderUs(force) {
+  const box = $("out");
+  if (!box || TAB !== "us") return;
+  if (force) US = null;
+  if (!US && !US_LOADING) {
+    US_LOADING = true;
+    box.innerHTML = '<div class="empty">正在拉美股行情…</div>';
+    await loadUs(true);
+    US_LOADING = false;
+    if (TAB !== "us") return;
+  }
+  box.innerHTML = usHTML();
+}
+
+function usHTML() {
+  let h = '<h3>美股 · 行情</h3>';
+  if (!US) {
+    return h + '<div class="empty"><b>还没拿到数据</b>美股行情每 2 小时生成一次，' +
+      '刚上线时可能是空的。</div><div class="acts"><a onclick="renderUs(true)">🔄 重新拉</a></div>';
+  }
+  h += '<div class="acts" style="margin-bottom:10px"><a onclick="renderUs(true)">🔄 刷新</a></div>';
+  h += '<div class="tideintro">📈 <b>美股行情</b>　' + (US.updated || '') +
+       ' · 数据源 Nasdaq<br><span style="color:var(--amber2)">这是行情参考，' +
+       '不是买卖信号。涨跌和你的判断无关。</span></div>';
+
+  (US.items || []).forEach(function (it) {
+    const above = it.ma20 && it.px > it.ma20;
+    const dev = it.ma20 ? (it.px / it.ma20 - 1) * 100 : null;
+    h += '<div class="bigcard" style="margin-bottom:10px;border-color:' +
+      (above ? "var(--upbd)" : "var(--dnbd)") + '">' +
+      '<div class="bchead"><span>' + it.s +
+      '<span style="font-size:11px;color:var(--dim);font-weight:400"> ' + (it.n || '') + '</span></span>' +
+      '<span style="font-size:11px;color:var(--dim)">距年高 ' + it.from_hi + '%</span></div>' +
+      '<div style="font-size:26px;font-weight:800;color:var(--fg3);line-height:1.2">' +
+      '$' + it.px.toFixed(2) +
+      '<span style="font-size:13px;margin-left:8px;font-weight:600;color:' +
+      ((it.chg || 0) >= 0 ? "var(--up)" : "var(--dn)") + '">' +
+      ((it.chg || 0) >= 0 ? "+" : "") + (it.chg || 0).toFixed(2) + '%</span></div>' +
+      '<div class="aline" style="font-size:12px;margin-top:7px">' +
+      'MA20 <b>' + (it.ma20 || '—') + '</b>' +
+      (dev === null ? '' : '　<b style="color:' + (above ? "var(--up)" : "var(--dn)") + '">' +
+        (above ? "在上方 " : "在下方 ") + Math.abs(dev).toFixed(1) + '%</b>') +
+      '　ATR <b>' + (it.atr || '—') + '%</b></div>' +
+      '<div class="aline" style="font-size:11px;color:var(--dim)">' +
+      '一年区间 ' + it.lo + ' ~ ' + it.hi + '　距低点 +' + it.from_lo + '%' +
+      '　<span style="color:var(--dn3)">10x 下跌 10% 归零</span></div>' +
+      '</div>';
+  });
+  return h;
 }
 
 /* ============ 套利 · 资金费率 ============ */
@@ -3255,6 +3334,23 @@ function meHTML() {
 
   /* 交易所选择已删除：国内 ROM 会拦 binance.com，跳转必然失败，只保留复制币种 */
 
+  /* 风控 */
+  h += '<div class="bigcard">';
+  h += '<div class="bchead"><span>风控 · 单笔名义上限</span>' +
+    '<span style="font-size:11px;color:var(--dim)">只卡顶口和手动记的非主流币</span></div>';
+  h += '<div class="levrow" style="margin-top:0">' +
+    [[0.15, "15%"], [0.30, "30%"], [0.50, "50%"], [0, "关闭"]].map(function (x) {
+      return '<button class="levbtn' + (Math.abs(ALT_CAP_PCT - x[0]) < 1e-9 ? " on" : "") + '" ' +
+        'onclick="setAltCapLevel(' + x[0] + ')">' + x[1] + '</button>';
+    }).join('') + '</div>';
+  h += '<div style="font-size:11px;color:var(--dim);margin-top:9px">' +
+    (ALT_CAP_PCT > 0
+      ? '现在：单笔名义不能超过权益的 <b>' + Math.round(ALT_CAP_PCT * 100) + '%</b>（' +
+        ((BASE_CAP + FLOAT_PNL) * ALT_CAP_PCT).toFixed(2) + 'U）'
+      : '<b style="color:var(--dn3)">现在：上限已关闭</b>，只提醒不拦截') +
+    '<br>上次你开的是权益的 62%。</div>';
+  h += '</div>';
+
 
   /* 历史盈亏 */
   h += '<div class="bigcard">';
@@ -3393,7 +3489,7 @@ function saveTrade() {
 }
 
 /* ============ 三页 + 子页导航 ============ */
-let TAB = "main";     // main | alt | arb | pos
+let TAB = "main";     // main | alt | arb | us | pos
 let SUB = "";         // 当前页的子页
 
 const SUBS = {
@@ -3409,13 +3505,14 @@ const SUBS = {
     { k: "agg",  t: "⚡激进" }
   ],
   arb: [],
+  us: [],
   pos: []
 };
 
 function isAltSym(sym) { return CFG.COINS.indexOf(sym) < 0; }
 
 function syncTabs() {
-  ["main", "alt", "arb", "pos"].forEach(function (t) {
+  ["main", "alt", "arb", "us", "pos"].forEach(function (t) {
     const b = $("tab-" + t);
     if (b) b.classList.toggle("on", TAB === t);
   });
@@ -3445,6 +3542,7 @@ function setTAB(t) {
   try { localStorage.setItem("sub_" + t, SUB); } catch (e) {}
   if (window._last) render(window._last.rows, window._last.sigs);
   else if (t === "arb") renderArb();
+  else if (t === "us") renderUs();
   else scanAll();
 }
 
@@ -3459,14 +3557,15 @@ function setSUB(s) {
 try {
   const saved = localStorage.getItem("tab");
   if (saved === "main" || saved === "alt" || saved === "arb" || saved === "pos" ||
-      saved === "me") TAB = saved;
+      saved === "us" || saved === "me") TAB = saved;
   const savedSub = localStorage.getItem("sub_" + TAB);
   if (savedSub) SUB = savedSub;
 } catch (e) {}
 /* 桌面图标长按快捷键：?t=main|alt|arb|pos|me */
 try {
   const _q = new URLSearchParams(location.search).get("t");
-  if (_q === "main" || _q === "alt" || _q === "arb" || _q === "pos" || _q === "me") {
+  if (_q === "main" || _q === "alt" || _q === "arb" || _q === "pos" ||
+      _q === "us" || _q === "me") {
     TAB = _q; SUB = "";
     history.replaceState(null, "", location.pathname);
   }
@@ -3843,18 +3942,45 @@ function modalSave() {
 
 /* 山寨币做空：直接记录持仓 */
 /* ============ 仓位硬上限（只卡顶口这类「不设止损」的仓） ============ */
-const ALT_CAP_PCT = 0.15;
+let ALT_CAP_PCT = 0.15;
+
+function loadRiskCfg() {
+  try {
+    const v = parseFloat(localStorage.getItem("altcap"));
+    if (isFinite(v) && v >= 0 && v <= 1) ALT_CAP_PCT = v;
+  } catch (e) {}
+}
+
+function setAltCapLevel(v) {
+  if (v > 0) {
+    const msg = v >= 0.5
+      ? "把单笔上限放到 " + Math.round(v * 100) + "%？\n\n" +
+        "你上次就是在 62% 这个位置被清算的。\n这一档基本上等于没有限制。"
+      : "把单笔上限调到 " + Math.round(v * 100) + "%？";
+    if (!confirm(msg)) return;
+  } else {
+    if (!confirm("彻底关掉单笔上限？\n\n" +
+                 "关了以后只提醒、不拦截。\n\n" +
+                 "你上一次爆仓，就是没有这道闸。\n\n确定关？")) return;
+  }
+  ALT_CAP_PCT = v;
+  try { localStorage.setItem("altcap", String(v)); } catch (e) {}
+  if (TAB === "me") renderMe();
+}
 
 function altCapBlock(notional, price) {
   const eq = Math.max(BASE_CAP + FLOAT_PNL, 0.01);
+  if (ALT_CAP_PCT <= 0) return true;          // 用户明确关了
   /* 下限兜到交易所最小下单额，账户很小的时候不至于一笔都开不了 */
   const cap = Math.max(eq * ALT_CAP_PCT, MIN_NOTIONAL);
   if (notional <= cap + 0.01) return true;
   const maxQty = price > 0 ? cap / price : 0;
   alert("⛔ 这笔记不了（超过单笔上限）\n\n" +
-        "账户 " + eq.toFixed(2) + "U × 15% = 上限 " + cap.toFixed(2) + "U\n" +
+        "账户 " + eq.toFixed(2) + "U × " + Math.round(ALT_CAP_PCT * 100) +
+        "% = 上限 " + cap.toFixed(2) + "U\n" +
         "你要开的名义 " + notional.toFixed(2) + "U\n\n" +
         "顶口不设止损，仓位必须小到「亏光也不影响下一笔」。\n" +
+        "（嫌小可以到「我的 → 风控」里调，或者直接关掉）\n" +
         (maxQty > 0
           ? "这个价最多开 " + (maxQty >= 1 ? maxQty.toFixed(4) : maxQty.toFixed(6)) + " 个"
           : ""));
@@ -4164,6 +4290,7 @@ function startApp() {
   $("gmodal").style.display = "none";
 
   loadTheme();
+  loadRiskCfg();
   loadMe();
   loadExch();
   syncTabs();
@@ -4200,6 +4327,7 @@ function startApp() {
     if (TAB === "pos" && window._last) render(window._last.rows, window._last.sigs);
   });
   if (!shown && TAB === "arb") { renderArb(); setTimeout(scanAll, 200); }
+  else if (!shown && TAB === "us") { renderUs(); setTimeout(scanAll, 200); }
   else if (!shown && TAB !== "pos") setTimeout(scanAll, 200);
   else if (!shown) btnDefault();
 }
