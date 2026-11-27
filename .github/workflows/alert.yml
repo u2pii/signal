@@ -54,7 +54,13 @@ jobs:
             echo "no change"
           else
             git commit -m "chore: update alt data"
-            git push
+            # 别的地方（网页部署）可能同时在推，冲突就 rebase 后重试
+            for i in 1 2 3 4; do
+              if git push; then echo "pushed"; break; fi
+              echo "push 失败，第 $i 次重试"
+              git pull --rebase --autostash || true
+              sleep 4
+            done
           fi
 
       # GITHUB_TOKEN 推的提交不会触发其他工作流，必须手动踢一下 Pages
